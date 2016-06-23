@@ -59,9 +59,16 @@ void pickup()
     digitalWrite(INTERNAL_LED, LOW);
 }
 
+void hold()
+{
+    digitalWrite(INTERNAL_LED, HIGH);
+    digitalWrite(MAGNET_HI_OUT, HIGH);
+}
+
 void drop()
 {
     digitalWrite(INTERNAL_LED, HIGH);
+    digitalWrite(MAGNET_HI_OUT, LOW);
     digitalWrite(MAGNET_LO_OUT, LOW);
     delay(500);
     digitalWrite(INTERNAL_LED, LOW);
@@ -221,6 +228,12 @@ void process(const char* buffer)
         }
         break;
         
+    case 'H':
+    case 'h':
+        hold();
+        Serial.println("Holding");
+        return;
+
     default:
         Serial.print("Error: Unknown command '");
         Serial.print(buffer[0]);
