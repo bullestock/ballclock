@@ -21,7 +21,7 @@ const int ANGLE_DOWN = 90;
 const int DETACH_DELAY = 1500;
 const int PICKUP_HI_DELAY = 1000;
 
-const int STEP_DELAY = 500;
+const int STEP_DELAY = 300;
 
 const int x_home = 0;
 const int y_home = 0;
@@ -97,9 +97,10 @@ void magnet_off()
     analogWrite(MAGNET_LED_OUT, 0);
 }
 
-void step(int m, bool reverse, int steps)
+void step(int m, bool reverse, int steps, bool enable = true)
 {
-    digitalWrite(ENABLE, LOW);
+    if (enable)
+        digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
     digitalWrite(dir_pin, !reverse);
@@ -120,56 +121,43 @@ void step(int m, bool reverse, int steps)
         delayMicroseconds(STEP_DELAY);
     }
     digitalWrite(INTERNAL_LED, LOW);
-    digitalWrite(ENABLE, HIGH);
+    if (enable)
+        digitalWrite(ENABLE, HIGH);
 }
 
 void home()
 {
     Serial.println("Homing");
+    digitalWrite(ENABLE, LOW);
     bool x_limit_hit = digitalRead(X_LIMIT);
     bool y_limit_hit = digitalRead(Y_LIMIT);
     Serial.print("X ");
     Serial.print(digitalRead(X_LIMIT));
     Serial.print(" Y ");
     Serial.println(digitalRead(Y_LIMIT));
-    const int steps = 10;
+    const int steps = 1;
     while (x_limit_hit || y_limit_hit)
     {
         if (x_limit_hit)
-        {
-            Serial.println("--x");
-            step(MOTOR_X, false, steps);
-        }
+            step(MOTOR_X, false, steps, false);
         if (y_limit_hit)
-        {
-            Serial.println("--y");
-            step(MOTOR_Y, false, steps);
-        }
+            step(MOTOR_Y, false, steps, false);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
     }
 
     do
     {
-        Serial.print("X ");
-        Serial.print(x_limit_hit);
-        Serial.print(" Y ");
-        Serial.println(y_limit_hit);
         if (!x_limit_hit)
-        {
-            Serial.println("++x");
-            step(MOTOR_X, true, steps);
-        }
+            step(MOTOR_X, true, steps, false);
         if (!y_limit_hit)
-        {
-            Serial.println("++y");
-            step(MOTOR_Y, true, steps);
-        }
+            step(MOTOR_Y, true, steps, false);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
     }
     while (!x_limit_hit || !y_limit_hit);
 
+    digitalWrite(ENABLE, HIGH);
     Serial.println("Done");
     
     current_x = 0;
@@ -216,21 +204,27 @@ void drop()
 
 void move(int x, int y)
 {
-    while ((current_x != x) || (current_y != y))
+    int current_x_step = current_x*STEPS_PER_CELL;
+    int current_y_step = current_y*STEPS_PER_CELL;
+    int x_step = x*STEPS_PER_CELL;
+    int y_step = y*STEPS_PER_CELL;
+    while ((current_x_step != x_step) || (current_y_step != y_step))
     {
-        if (current_x != x)
+        if (current_x_step != x_step)
         {
-            bool reverse = current_x > x;
-            step(MOTOR_X, reverse, STEPS_PER_CELL);
-            current_x += reverse ? -1 : 1;
+            bool reverse = current_x_step > x_step;
+            step(MOTOR_X, reverse, 1);
+            current_x_step += reverse ? -1 : 1;
         }
-        if (current_y != y)
+        if (current_y_step != y_step)
         {
-            bool reverse = current_y > y;
-            step(MOTOR_Y, reverse, STEPS_PER_CELL);
-            current_y += reverse ? -1 : 1;
+            bool reverse = current_y_step > y_step;
+            step(MOTOR_Y, reverse, 1);
+            current_y_step += reverse ? -1 : 1;
         }
     }
+    current_x = x;
+    current_y = y;
 }
 
 void move(size_t n, const int* pos)
