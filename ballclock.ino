@@ -1,12 +1,13 @@
 #include <Servo.h>
 
-const int X_DIR = 7;
+const int ENABLE = 6;
+const int X_DIR = 8;
 const int X_STEP = 9;
 const int Y_DIR = 4;
 const int Y_STEP = 5;
-const int X_Y_RESET = 8;
-const int X_LIMIT = A2;
-const int Y_LIMIT = A3;
+const int X_Y_RESET = 7;
+const int X_LIMIT = A3;
+const int Y_LIMIT = A2;
 const int SERVO_OUT = 3;
 const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
@@ -20,16 +21,13 @@ const int ANGLE_DOWN = 90;
 const int DETACH_DELAY = 1500;
 const int PICKUP_HI_DELAY = 1000;
 
+const int STEP_DELAY = 500;
+
 const int x_home = 0;
 const int y_home = 0;
 
-// Distance between individual dots in the matrix, in mm
-const double dot_spacing = 10.0;
-
-// Resolution of plotter coordinate system, in mm
-const double resolution = .025;
-
-const int scale = static_cast<int>(dot_spacing/resolution);
+// Distance between individual dots in the matrix, in steps
+int STEPS_PER_CELL = 100;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -37,15 +35,16 @@ int magnet_lo_pwr = MAGNET_LO;
 const int MOTOR_X = 0;
 const int MOTOR_Y = 1;
 
-Servo servo;
+int current_x = 0;
+int current_y = 0;
 
-// TODO:
-// - determine initial X move
+Servo servo;
 
 void setup()
 {
     pinMode(INTERNAL_LED, OUTPUT); 
     pinMode(MAGNET_OUT, OUTPUT);
+    pinMode(ENABLE, OUTPUT);
     pinMode(X_DIR, OUTPUT);
     pinMode(X_STEP, OUTPUT);
     pinMode(Y_DIR, OUTPUT);
@@ -68,19 +67,16 @@ void setup()
     }
     Serial.begin(57600);
 
-    Serial.println("*** MOTOR TEST ***");
-
+    digitalWrite(ENABLE, LOW);
+    
     digitalWrite(X_Y_RESET, LOW);
     delay(10);
     digitalWrite(X_Y_RESET, HIGH);
     delay(10);
-    step(MOTOR_X, false, 100);
-    delay(500);
-    step(MOTOR_X, true, 100);
-    delay(500);
 
+    home();
+    
     Serial.println("Ball Clock ready");
-    //TODO: Home
 }
 
 void magnet_full()
@@ -103,22 +99,85 @@ void magnet_off()
 
 void step(int m, bool reverse, int steps)
 {
+    digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
-    digitalWrite(dir_pin, reverse);
+    digitalWrite(dir_pin, !reverse);
+    bool led_state = LOW;
+    int n = 0;
     for (int i = 0; i < steps; ++i)
     {
+        if (++n > 10)
+        {
+            n = 0;
+            led_state = !led_state;
+            digitalWrite(INTERNAL_LED, led_state);
+        }
         // Max is about 500 us
         digitalWrite(step_pin, HIGH);
-        delayMicroseconds(900);
+        delayMicroseconds(STEP_DELAY);
         digitalWrite(step_pin, LOW);
-        delayMicroseconds(900);
+        delayMicroseconds(STEP_DELAY);
     }
+    digitalWrite(INTERNAL_LED, LOW);
+    digitalWrite(ENABLE, HIGH);
+}
+
+void home()
+{
+    Serial.println("Homing");
+    bool x_limit_hit = digitalRead(X_LIMIT);
+    bool y_limit_hit = digitalRead(Y_LIMIT);
+    Serial.print("X ");
+    Serial.print(digitalRead(X_LIMIT));
+    Serial.print(" Y ");
+    Serial.println(digitalRead(Y_LIMIT));
+    const int steps = 10;
+    while (x_limit_hit || y_limit_hit)
+    {
+        if (x_limit_hit)
+        {
+            Serial.println("--x");
+            step(MOTOR_X, false, steps);
+        }
+        if (y_limit_hit)
+        {
+            Serial.println("--y");
+            step(MOTOR_Y, false, steps);
+        }
+        x_limit_hit = digitalRead(X_LIMIT);
+        y_limit_hit = digitalRead(Y_LIMIT);
+    }
+
+    do
+    {
+        Serial.print("X ");
+        Serial.print(x_limit_hit);
+        Serial.print(" Y ");
+        Serial.println(y_limit_hit);
+        if (!x_limit_hit)
+        {
+            Serial.println("++x");
+            step(MOTOR_X, true, steps);
+        }
+        if (!y_limit_hit)
+        {
+            Serial.println("++y");
+            step(MOTOR_Y, true, steps);
+        }
+        x_limit_hit = digitalRead(X_LIMIT);
+        y_limit_hit = digitalRead(Y_LIMIT);
+    }
+    while (!x_limit_hit || !y_limit_hit);
+
+    Serial.println("Done");
+    
+    current_x = 0;
+    current_y = 0;
 }
 
 void pickup()
 {
-    digitalWrite(INTERNAL_LED, HIGH);
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
     delay(500);
@@ -128,7 +187,6 @@ void pickup()
     delay(DETACH_DELAY);
     //servo.detach();
     magnet_half();
-    digitalWrite(INTERNAL_LED, LOW);
 }
 
 void lift()
@@ -141,15 +199,11 @@ void lift()
 
 void hold()
 {
-    digitalWrite(INTERNAL_LED, HIGH);
     magnet_full();
 }
 
 void drop()
 {
-    digitalWrite(INTERNAL_LED, HIGH);
-    delay(500);
-    digitalWrite(INTERNAL_LED, LOW);
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
     delay(DETACH_DELAY);
@@ -162,9 +216,21 @@ void drop()
 
 void move(int x, int y)
 {
-    digitalWrite(INTERNAL_LED, HIGH);
-    //sprintf(buf, "PD%d,%d;", x_home+x*scale, y_home+y*scale);
-    digitalWrite(INTERNAL_LED, LOW);
+    while ((current_x != x) || (current_y != y))
+    {
+        if (current_x != x)
+        {
+            bool reverse = current_x > x;
+            step(MOTOR_X, reverse, STEPS_PER_CELL);
+            current_x += reverse ? -1 : 1;
+        }
+        if (current_y != y)
+        {
+            bool reverse = current_y > y;
+            step(MOTOR_Y, reverse, STEPS_PER_CELL);
+            current_y += reverse ? -1 : 1;
+        }
+    }
 }
 
 void move(size_t n, const int* pos)
@@ -267,7 +333,8 @@ void process(const char* buffer)
     case 'R':
     case 'r':
         Serial.println("Resetting...");
-        // TODO
+        lift();
+        home();
         Serial.println("Reset done");
         return;
 
@@ -301,39 +368,6 @@ void process(const char* buffer)
         }
         break;
         
-    case 't':
-    case 'T':
-        {
-#if 1
-            int index;
-            int a1 = get_int(buffer+1, BUF_SIZE-1, index); 
-            int a2 = get_int(buffer+index, BUF_SIZE-1, index); 
-            Serial.print("Run servo test ");
-            Serial.print(a1);
-            Serial.print("/");
-            Serial.println(a2);
-            servo.attach(SERVO_OUT);
-            for (int i = 0; i < 10; ++i)
-            {
-                Serial.println(i);
-                delay(1000);
-                servo.write(a1);
-                delay(1000);
-                servo.write(a2);
-            }
-            servo.detach();
-#endif
-#if 0
-            for (int i = 20; i < 100; ++i)
-            {
-                Serial.println(i);
-                analogWrite(MAGNET_LED_OUT, i);
-                delay(500);
-            }
-#endif
-        }
-        break;
-        
     case 'H':
     case 'h':
         hold();
@@ -346,18 +380,6 @@ void process(const char* buffer)
         Serial.println("Lifting");
         return;
 
-    case 'x':
-    case 'X':
-        Serial.println("Run X motor test");
-        while (1)
-        {
-            step(MOTOR_X, false, 100);
-            delay(500);
-            step(MOTOR_X, true, 100);
-            delay(500);
-        }
-        break;
-        
     default:
         Serial.print("Error: Unknown command '");
         Serial.print(buffer[0]);
