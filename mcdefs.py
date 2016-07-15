@@ -4,7 +4,7 @@ from solid.utils import *
 
 block_w = 24
 flange_w = 10
-flange_h = 5
+flange_h = 3
 mounthole_d = 4
 d = 13
 
