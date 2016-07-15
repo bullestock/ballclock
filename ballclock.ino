@@ -13,17 +13,18 @@ const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
 const int MAGNET_LED_OUT = 10;
 
-const int MAGNET_HI = 64;
-const int MAGNET_LO = 32;
+const int MAGNET_HI = 128;
+const int MAGNET_LO = 64;
 const int ANGLE_UP = 112;
 const int ANGLE_DOWN = 90;
 
 const int SERVO_DELAY = 500; // ms
 const int PICKUP_HI_DELAY = 500; // ms
 
-const int STEP_DELAY = 100; // microseconds
+const int STEP_DELAY = 150; // microseconds
+const int MIN_STEP_DELAY = 50; // microseconds
 
-const int x_home = 310;
+const int x_home = 390;
 const int y_home = 560;
 
 // Distance between individual dots in the matrix, in steps
@@ -108,29 +109,89 @@ void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
     digitalWrite(dir_pin, !reverse);
-    bool led_state = LOW;
-    int n = 0;
     for (int i = 0; i < steps; ++i)
     {
-        if (++n > 10)
-        {
-            n = 0;
-            led_state = !led_state;
-            digitalWrite(INTERNAL_LED, led_state);
-        }
         digitalWrite(step_pin, HIGH);
-        delayMicroseconds(slow ? 2*STEP_DELAY : STEP_DELAY);
+        delayMicroseconds(STEP_DELAY);
         digitalWrite(step_pin, LOW);
-        delayMicroseconds(slow ? 2*STEP_DELAY : STEP_DELAY);
+        delayMicroseconds(STEP_DELAY);
     }
     digitalWrite(INTERNAL_LED, LOW);
     if (enable && enable_enabled)
         digitalWrite(ENABLE, HIGH);
 }
 
+void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
+{
+    if (enable && enable_enabled)
+        digitalWrite(ENABLE, LOW);
+    digitalWrite(X_DIR, x_steps > 0);
+    digitalWrite(Y_DIR, y_steps > 0);
+
+    const int common_steps = min(abs(x_steps), abs(y_steps));
+    int step_delay = slow ? 2*STEP_DELAY : STEP_DELAY;
+    const int step_delay_max = step_delay;
+    const int ramp_count = 10;
+    const int ramp_length = STEP_DELAY*ramp_count;
+    int count = 0;
+    int ramp_limit = min(ramp_length, common_steps/2);
+    for (int i = 0; i < common_steps; ++i)
+    {
+        if (++count > ramp_count)
+        {
+            count = 0;
+            if (i < ramp_limit)
+            {
+                // Ramp up
+                if (step_delay > MIN_STEP_DELAY)
+                    --step_delay;
+            }
+            else if (i > common_steps-ramp_limit)
+            {
+                // Ramp down
+                if (step_delay < step_delay_max)
+                    ++step_delay;
+            }
+        }
+        digitalWrite(X_STEP, HIGH);
+        digitalWrite(Y_STEP, HIGH);
+        delayMicroseconds(step_delay);
+        digitalWrite(X_STEP, LOW);
+        digitalWrite(Y_STEP, LOW);
+        delayMicroseconds(step_delay);
+    }
+    const int steps_left = max(abs(x_steps), abs(y_steps)) - common_steps;
+    const int step_pin = (abs(x_steps) > abs(y_steps)) ? X_STEP : Y_STEP;
+    ramp_limit = min(ramp_length, steps_left/2);
+    for (int i = 0; i < steps_left; ++i)
+    {
+        if (++count > ramp_count)
+        {
+            count = 0;
+            if (i < ramp_limit)
+            {
+                // Ramp up
+                if (step_delay > MIN_STEP_DELAY)
+                    --step_delay;
+            }
+            else if (i > steps_left-ramp_limit)
+            {
+                // Ramp down
+                if (step_delay < step_delay_max)
+                    ++step_delay;
+            }
+        }
+        digitalWrite(step_pin, HIGH);
+        delayMicroseconds(step_delay);
+        digitalWrite(step_pin, LOW);
+        delayMicroseconds(step_delay);
+    }
+    if (enable && enable_enabled)
+        digitalWrite(ENABLE, HIGH);
+}
+
 void home(bool _goToZero)
 {
-    Serial.println("Homing");
     digitalWrite(ENABLE, LOW);
     bool x_limit_hit = digitalRead(X_LIMIT);
     bool y_limit_hit = digitalRead(Y_LIMIT);
@@ -161,7 +222,6 @@ void home(bool _goToZero)
         step(MOTOR_X, false, x_home);
         step(MOTOR_Y, false, y_home);
     }
-    Serial.println("Homing done");
 
     digitalWrite(ENABLE, HIGH);
     
@@ -214,21 +274,7 @@ void move(int x, int y)
     int current_y_step = current_y*scaleFactor;
     int x_step = x*scaleFactor;
     int y_step = y*scaleFactor;
-    while ((current_x_step != x_step) || (current_y_step != y_step))
-    {
-        if (current_x_step != x_step)
-        {
-            bool reverse = current_x_step > x_step;
-            step(MOTOR_X, reverse, 1);
-            current_x_step += reverse ? -1 : 1;
-        }
-        if (current_y_step != y_step)
-        {
-            bool reverse = current_y_step > y_step;
-            step(MOTOR_Y, reverse, 1);
-            current_y_step += reverse ? -1 : 1;
-        }
-    }
+    step_xy(x_step - current_x_step, y_step - current_y_step);
     current_x = x;
     current_y = y;
 }
@@ -336,9 +382,18 @@ void process(const char* buffer)
     {
     case 'R':
     case 'r':
-        Serial.println("Reset");
         lift();
         home();
+        break;
+
+    case 'O':
+    case 'o':
+        {
+            int index;
+            x_home = get_int(buffer+1, BUF_SIZE-1, index); 
+            y_home = get_int(buffer+index, BUF_SIZE-1, index); 
+            home();
+        }
         break;
 
     case 'e':
@@ -346,8 +401,6 @@ void process(const char* buffer)
         {
             int index;
             enable_enabled = (bool) get_int(buffer+1, BUF_SIZE-1, index); 
-            Serial.print("Enable is ");
-            Serial.println(enable_enabled ? "enabled" : "disabled");
             digitalWrite(ENABLE, enable_enabled);
         }
         break;
@@ -405,7 +458,8 @@ void process(const char* buffer)
         Serial.println("'");
         return;
     }
-    Serial.println("OK");
+    Serial.print("OK ");
+    Serial.println(buffer);
 }
 
 int index = 0;
