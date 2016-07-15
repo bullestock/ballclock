@@ -13,21 +13,21 @@ const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
 const int MAGNET_LED_OUT = 10;
 
-const int MAGNET_HI = 128;
+const int MAGNET_HI = 64;
 const int MAGNET_LO = 32;
 const int ANGLE_UP = 112;
 const int ANGLE_DOWN = 90;
 
-const int DETACH_DELAY = 1500;
-const int PICKUP_HI_DELAY = 1000;
+const int SERVO_DELAY = 500; // ms
+const int PICKUP_HI_DELAY = 500; // ms
 
-const int STEP_DELAY = 300;
+const int STEP_DELAY = 100; // microseconds
 
-const int x_home = 0;
-const int y_home = 0;
+const int x_home = 310;
+const int y_home = 560;
 
 // Distance between individual dots in the matrix, in steps
-int STEPS_PER_CELL = 100;
+int STEPS_PER_CELL = 100*4;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -38,7 +38,11 @@ const int MOTOR_Y = 1;
 int current_x = 0;
 int current_y = 0;
 
+bool enable_enabled = true;
+
 Servo servo;
+
+void home(bool _goToZero = true);
 
 void setup()
 {
@@ -97,9 +101,9 @@ void magnet_off()
     analogWrite(MAGNET_LED_OUT, 0);
 }
 
-void step(int m, bool reverse, int steps, bool enable = true)
+void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
 {
-    if (enable)
+    if (enable && enable_enabled)
         digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
@@ -114,27 +118,22 @@ void step(int m, bool reverse, int steps, bool enable = true)
             led_state = !led_state;
             digitalWrite(INTERNAL_LED, led_state);
         }
-        // Max is about 500 us
         digitalWrite(step_pin, HIGH);
-        delayMicroseconds(STEP_DELAY);
+        delayMicroseconds(slow ? 2*STEP_DELAY : STEP_DELAY);
         digitalWrite(step_pin, LOW);
-        delayMicroseconds(STEP_DELAY);
+        delayMicroseconds(slow ? 2*STEP_DELAY : STEP_DELAY);
     }
     digitalWrite(INTERNAL_LED, LOW);
-    if (enable)
+    if (enable && enable_enabled)
         digitalWrite(ENABLE, HIGH);
 }
 
-void home()
+void home(bool _goToZero)
 {
     Serial.println("Homing");
     digitalWrite(ENABLE, LOW);
     bool x_limit_hit = digitalRead(X_LIMIT);
     bool y_limit_hit = digitalRead(Y_LIMIT);
-    Serial.print("X ");
-    Serial.print(digitalRead(X_LIMIT));
-    Serial.print(" Y ");
-    Serial.println(digitalRead(Y_LIMIT));
     const int steps = 1;
     while (x_limit_hit || y_limit_hit)
     {
@@ -149,16 +148,22 @@ void home()
     do
     {
         if (!x_limit_hit)
-            step(MOTOR_X, true, steps, false);
+            step(MOTOR_X, true, steps, false, true);
         if (!y_limit_hit)
-            step(MOTOR_Y, true, steps, false);
+            step(MOTOR_Y, true, steps, false, true);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
     }
     while (!x_limit_hit || !y_limit_hit);
 
+    if (_goToZero)
+    {
+        step(MOTOR_X, false, x_home);
+        step(MOTOR_Y, false, y_home);
+    }
+    Serial.println("Homing done");
+
     digitalWrite(ENABLE, HIGH);
-    Serial.println("Done");
     
     current_x = 0;
     current_y = 0;
@@ -172,7 +177,7 @@ void pickup()
     magnet_full();
     delay(PICKUP_HI_DELAY);
     servo.write(ANGLE_UP);
-    delay(DETACH_DELAY);
+    delay(SERVO_DELAY);
     //servo.detach();
     magnet_half();
 }
@@ -181,7 +186,7 @@ void lift()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_UP);
-    delay(DETACH_DELAY);
+    delay(SERVO_DELAY);
     //servo.detach();
 }
 
@@ -194,20 +199,21 @@ void drop()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
-    delay(DETACH_DELAY);
+    delay(SERVO_DELAY);
     //servo.detach();
     magnet_off();
     delay(500);
     servo.write(ANGLE_UP);
-    delay(DETACH_DELAY);
+    delay(SERVO_DELAY);
 }
 
 void move(int x, int y)
 {
-    int current_x_step = current_x*STEPS_PER_CELL;
-    int current_y_step = current_y*STEPS_PER_CELL;
-    int x_step = x*STEPS_PER_CELL;
-    int y_step = y*STEPS_PER_CELL;
+    const int scaleFactor = STEPS_PER_CELL;
+    int current_x_step = current_x*scaleFactor;
+    int current_y_step = current_y*scaleFactor;
+    int x_step = x*scaleFactor;
+    int y_step = y*scaleFactor;
     while ((current_x_step != x_step) || (current_y_step != y_step))
     {
         if (current_x_step != x_step)
@@ -227,6 +233,13 @@ void move(int x, int y)
     current_y = y;
 }
 
+void micro_move(int x, int y)
+{
+    home(false);
+    step(MOTOR_X, false, x);
+    step(MOTOR_Y, false, y);
+}
+
 void move(size_t n, const int* pos)
 {
     for (size_t i = 0; i < n; ++i)
@@ -235,10 +248,6 @@ void move(size_t n, const int* pos)
             pickup();
         const int x = *pos++;
         const int y = *pos++;
-        Serial.print("Go to ");
-        Serial.print(x);
-        Serial.print(", ");
-        Serial.println(y);
         move(x, y);
     }
     if (n > 1)
@@ -276,7 +285,7 @@ int get_int(const char* buffer, int len, int& next)
     return atoi(intbuf);
 }
 
-void process_move(const char* buffer)
+void process_move(const char* buffer, bool microMove)
 {
     int coords[MAX_COORDS];
     int index = 0;
@@ -311,13 +320,14 @@ void process_move(const char* buffer)
     }
     if (coords_index % 2)
     {
-        Serial.println(coords_index);
-        Serial.println(index);
         Serial.println("Error: Odd number of arguments");
         return;
     }
 
-    move(coords_index/2, coords);
+    if (microMove)
+        micro_move(coords[0], coords[1]);
+    else
+        move(coords_index/2, coords);
 }
 
 void process(const char* buffer)
@@ -326,28 +336,45 @@ void process(const char* buffer)
     {
     case 'R':
     case 'r':
-        Serial.println("Resetting...");
+        Serial.println("Reset");
         lift();
         home();
-        Serial.println("Reset done");
-        return;
+        break;
 
+    case 'e':
+    case 'E':
+        {
+            int index;
+            enable_enabled = (bool) get_int(buffer+1, BUF_SIZE-1, index); 
+            Serial.print("Enable is ");
+            Serial.println(enable_enabled ? "enabled" : "disabled");
+            digitalWrite(ENABLE, enable_enabled);
+        }
+        break;
+        
     case 'M':
     case 'm':
-        process_move(buffer+1);
-        return;
+        {
+            bool microMove = false;
+            int offset = 1;
+            if ((buffer[1] == 'm') || (buffer[1] == 'M'))
+            {
+                microMove = true;
+                ++offset;
+            }
+            process_move(buffer+offset, microMove);
+        }
+        break;
 
     case 'P':
     case 'p':
         pickup();
-        Serial.println("Picked up");
-        return;
+        break;
 
     case 'D':
     case 'd':
         drop();
-        Serial.println("Dropped");
-        return;
+        break;
 
     case 'w':
     case 'W':
@@ -365,21 +392,20 @@ void process(const char* buffer)
     case 'H':
     case 'h':
         hold();
-        Serial.println("Holding");
-        return;
+        break;
 
     case 'L':
     case 'l':
         lift();
-        Serial.println("Lifting");
-        return;
+        break;
 
     default:
         Serial.print("Error: Unknown command '");
         Serial.print(buffer[0]);
         Serial.println("'");
-        break;
+        return;
     }
+    Serial.println("OK");
 }
 
 int index = 0;
