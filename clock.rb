@@ -2,9 +2,6 @@ require 'date'
 require 'serialport'
 require 'optparse'
 
-# First storage: (0,0) to (0,4)
-# First digit:   (0,6) to (4,12)
-
 $dry_run = false
 from_zero = false
 do_reset = false
@@ -42,13 +39,20 @@ $dots = [ zero, one, two, three, four, five, six, seven, eight, nine ]
 
 ROWS = 7
 COLUMNS = 5
-Y_ZERO = 6
+Y_OFFSET = 6
+Y_ZERO = 5
 WIDTH = 5+2
 
+# First storage: (0, Y_ZERO) to (4, Y_ZERO)
+# First digit:   (0, Y_ZERO+Y_OFFSET) to (0, Y_ZERO+Y_OFFSET+6)
+
 $wait_time = 10
+$verbose = true
 
 def verbose(s)
-  #puts s
+  if $verbose
+    puts s
+  end
 end
 
 def wait_response(s)
@@ -89,9 +93,9 @@ def move_ball(index,
               to_x, to_y)
   verbose("-- #{index}: Move ball (#{from_x}, #{from_y}) to (#{to_x}, #{to_y})")
   x1 = index*WIDTH+from_x 
-  y1 = from_y + Y_ZERO
+  y1 = from_y + Y_ZERO + Y_OFFSET
   x2 = index*WIDTH+to_x 
-  y2 = to_y + Y_ZERO
+  y2 = to_y + Y_ZERO + Y_OFFSET
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -114,18 +118,24 @@ def move_to_storage(index,
                     from_x, from_y)
   verbose("-- #{index}: Move ball (#{from_x}, #{from_y}) to storage")
   x1 = index*WIDTH+from_x 
-  y1 = from_y + Y_ZERO
+  y1 = from_y + Y_ZERO + Y_OFFSET
   storage_index = 0
   while $storage[index][storage_index] > 0
+    puts "Storage #{index}, #{storage_index} is used"
     storage_index = storage_index+1
-  end
-  if storage_index >= COLUMNS
-    puts "Fatal error: Not enough storage"
-    Process.exit()
+    if storage_index >= COLUMNS
+      storage_index = 0
+      index = index +1
+      if index >= 4
+        puts "Fatal error: Not enough storage"
+        Process.exit()
+      end
+    end
   end
   $storage[index][storage_index] = 1
+  puts "Mark storage #{index}, #{storage_index} as used"
   x2 = index*WIDTH+storage_index
-  y2 = 0
+  y2 = Y_ZERO
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -141,6 +151,7 @@ def fetch_from_storage(index,
   storage_digit_index = index
   storage_index = COLUMNS-1
   while ($storage[storage_digit_index][storage_index] == 0) && (storage_index > 0)
+    puts "Storage #{index}, #{storage_index} is empty"
     storage_index = storage_index-1
   end
   verbose("-- #{index}: Storage at #{storage_index}: #{$storage[storage_digit_index][storage_index]}")  
@@ -164,9 +175,9 @@ def fetch_from_storage(index,
   end
   $storage[storage_digit_index][storage_index] = 0
   x1 = storage_digit_index*WIDTH+storage_index
-  y1 = 0
+  y1 = Y_ZERO
   x2 = index*WIDTH+to_x
-  y2 = to_y + Y_ZERO
+  y2 = to_y + Y_ZERO + Y_OFFSET
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -302,17 +313,17 @@ $sp = nil
 if !$dry_run
   portnum = 0
   if ARGV.size > 0
-    portnum = ARGV.to_i
+    portnum = ARGV[0].to_i
   end
   $sp = SerialPort.new("/dev/ttyUSB#{portnum}",
                        { 'baud' => 57600,
                          'data_bits' => 8,
                          'parity' => SerialPort::NONE
                        })
-  sleep 8
+  sleep 6
   $sp.flush_input
-  s = "O 320 560"
-  $sp.puts(s)
+  s = "w 64 58"
+  $sp.puts s
   wait_response(s)
 end
 
@@ -354,6 +365,9 @@ while true
       if current[i] != prev[i]
         puts "#{prev} to #{current}"
         change(i, prev[i].to_i, current[i].to_i)
+        s = "R"
+        $sp.puts s
+        wait_response(s)
       end
     end
     if !$dry_run
