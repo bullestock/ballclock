@@ -13,22 +13,25 @@ const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
 const int MAGNET_LED_OUT = 10;
 
-const int MAGNET_HI = 128;
-const int MAGNET_LO = 64;
-const int ANGLE_UP = 112;
-const int ANGLE_DOWN = 90;
+const int MAGNET_HI = 64;
+const int MAGNET_LO = 50;
+const int ANGLE_UP = 78;
+const int ANGLE_DOWN = 100;
 
 const int SERVO_DELAY = 500; // ms
-const int PICKUP_HI_DELAY = 500; // ms
-
+const int PICKUP_HI_DELAY = 250; // ms
+ 
 const int STEP_DELAY = 150; // microseconds
 const int MIN_STEP_DELAY = 50; // microseconds
 
-const int x_home = 390;
-const int y_home = 560;
-
 // Distance between individual dots in the matrix, in steps
 int STEPS_PER_CELL = 100*4;
+
+// Cells from zero to storage row
+int Y_OFFSET = 5;
+
+int x_home = 125;
+int y_home = 3000 - STEPS_PER_CELL*Y_OFFSET;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -86,13 +89,13 @@ void setup()
 
 void magnet_full()
 {
-    analogWrite(MAGNET_OUT, magnet_hi_pwr);
+    analogWrite(MAGNET_OUT, 255-magnet_hi_pwr);
     analogWrite(MAGNET_LED_OUT, 255);
 }
 
 void magnet_half()
 {
-    analogWrite(MAGNET_OUT, magnet_lo_pwr);
+    analogWrite(MAGNET_OUT, 255-magnet_lo_pwr);
     analogWrite(MAGNET_LED_OUT, 150);
 }
 
@@ -233,7 +236,6 @@ void pickup()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
-    delay(500);
     magnet_full();
     delay(PICKUP_HI_DELAY);
     servo.write(ANGLE_UP);
@@ -305,8 +307,7 @@ const int MAX_COORDS = 32;
 
 int get_int(const char* buffer, int len)
 {
-    char intbuf[BUF_SIZE];
-    memcpy(intbuf, buffer, max(BUF_SIZE-1, len));
+    char intbuf[BUF_SIZE];    memcpy(intbuf, buffer, max(BUF_SIZE-1, len));
     intbuf[len] = 0;
     return atoi(intbuf);
 }
@@ -396,6 +397,15 @@ void process(const char* buffer)
         }
         break;
 
+    case 'q':
+        {
+            int index;
+            int x = get_int(buffer+1, BUF_SIZE-1, index); 
+            int y = get_int(buffer+index, BUF_SIZE-1, index); 
+            step_xy(x, y);
+        }
+        break;
+
     case 'e':
     case 'E':
         {
@@ -435,10 +445,22 @@ void process(const char* buffer)
             int index;
             magnet_lo_pwr = get_int(buffer+1, BUF_SIZE-1, index); 
             magnet_hi_pwr = get_int(buffer+index, BUF_SIZE-1, index); 
-            Serial.print("Power set to ");
-            Serial.print(magnet_lo_pwr);
+        }
+        break;
+        
+    case 't':
+        {
+            int index;
+            const int a1 = get_int(buffer+1, BUF_SIZE-1, index); 
+            const int a2 = get_int(buffer+index, BUF_SIZE-1, index); 
+            Serial.print("Servo ");
+            Serial.print(a1);
             Serial.print("/");
-            Serial.println(magnet_hi_pwr);
+            Serial.println(a2);
+            servo.write(a1);
+            delay(1000);
+            servo.write(a2);
+            delay(1000);
         }
         break;
         
