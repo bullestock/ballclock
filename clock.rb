@@ -7,9 +7,11 @@ from_zero = false
 do_reset = false
 initial_time = ''
 storage_count = 0
+run_fast = false
+$verbose = false
 
 OptionParser.new do |opts|
-  opts.banner = "Usage: clock.rb [-n] [-z] [portnumber]"
+  opts.banner = "Usage: clock.rb [options] [portnumber]"
 
   opts.on("-n", "--dry-run", "Dry run") do |n|
     $dry_run = true
@@ -22,6 +24,12 @@ OptionParser.new do |opts|
   end
   opts.on("-s", "--storage COUNT", "Balls in storage") do |n|
     storage_count = n.to_i
+  end
+  opts.on("-f", "--fast", "Run fast") do |n|
+    run_fast = true
+  end
+  opts.on("-v", "--verbose", "Verbose") do |n|
+    $verbose = true
   end
 end.parse!
 
@@ -45,9 +53,6 @@ WIDTH = 5+2
 
 # First storage: (0, Y_ZERO) to (4, Y_ZERO)
 # First digit:   (0, Y_ZERO+Y_OFFSET) to (0, Y_ZERO+Y_OFFSET+6)
-
-$wait_time = 10
-$verbose = true
 
 def verbose(s)
   if $verbose
@@ -119,22 +124,33 @@ def move_to_storage(index,
   verbose("-- #{index}: Move ball (#{from_x}, #{from_y}) to storage")
   x1 = index*WIDTH+from_x 
   y1 = from_y + Y_ZERO + Y_OFFSET
-  storage_index = 0
-  while $storage[index][storage_index] > 0
-    puts "Storage #{index}, #{storage_index} is used"
-    storage_index = storage_index+1
-    if storage_index >= COLUMNS
-      storage_index = 0
-      index = index +1
-      if index >= 4
-        puts "Fatal error: Not enough storage"
-        Process.exit()
+  storage_digit_index = index
+  storage_column_index = 0
+  while ($storage[storage_digit_index][storage_column_index] > 0) && (storage_column_index < COLUMNS)
+    verbose "Storage #{storage_digit_index}, #{storage_column_index} is used"
+    storage_column_index = storage_column_index + 1
+  end
+  if $storage[storage_digit_index][storage_column_index] > 0
+    # Look at the other digits
+    for storage_digit_index in 0..3
+      for storage_column_index in 0..COLUMNS-1
+        if ($storage[storage_digit_index][storage_column_index] == 0)
+          break
+        end
+        verbose "Storage #{storage_digit_index}, #{storage_column_index} is used"
+      end
+      if ($storage[storage_digit_index][storage_column_index] == 0)
+        break
       end
     end
+    if ($storage[storage_digit_index][storage_column_index] > 0)
+      puts "Fatal error: Not enough storage"
+      Process.exit()
+    end
   end
-  $storage[index][storage_index] = 1
-  puts "Mark storage #{index}, #{storage_index} as used"
-  x2 = index*WIDTH+storage_index
+  $storage[storage_digit_index][storage_column_index] = 1
+  verbose "Mark storage #{storage_digit_index}, #{storage_column_index} as used"
+  x2 = storage_digit_index*WIDTH+storage_column_index
   y2 = Y_ZERO
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
@@ -148,33 +164,35 @@ end
 def fetch_from_storage(index,
                        to_x, to_y)
   verbose("-- #{index}: Move ball from storage to (#{to_x}, #{to_y})")
+  # Start looking at current digit
   storage_digit_index = index
-  storage_index = COLUMNS-1
-  while ($storage[storage_digit_index][storage_index] == 0) && (storage_index > 0)
-    puts "Storage #{index}, #{storage_index} is empty"
-    storage_index = storage_index-1
+  storage_column_index = COLUMNS-1
+  while ($storage[storage_digit_index][storage_column_index] == 0) && (storage_column_index > 0)
+    verbose "Storage #{storage_digit_index}, #{storage_column_index} is empty"
+    storage_column_index = storage_column_index-1
   end
-  verbose("-- #{index}: Storage at #{storage_index}: #{$storage[storage_digit_index][storage_index]}")  
-  if ($storage[storage_digit_index][storage_index] == 0)
+  verbose("-- #{index}: Storage at #{storage_column_index}: #{$storage[storage_digit_index][storage_column_index]}")  
+  if ($storage[storage_digit_index][storage_column_index] == 0)
     # Look at the other digits
     verbose("-- #{index}: Look in other bins")
     for storage_digit_index in 0..3
-      storage_index = COLUMNS-1
-      while ($storage[storage_digit_index][storage_index] == 0) && (storage_index > 0)
-        storage_index = storage_index-1
+      storage_column_index = COLUMNS-1
+      while ($storage[storage_digit_index][storage_column_index] == 0) && (storage_column_index > 0)
+        verbose "Storage #{storage_digit_index}, #{storage_column_index} is empty"
+        storage_column_index = storage_column_index-1
       end
-      if ($storage[storage_digit_index][storage_index] > 0)
-        verbose("-- Found in bin #{storage_digit_index} at #{storage_index}")
+      if ($storage[storage_digit_index][storage_column_index] > 0)
+        verbose("-- Found in bin #{storage_digit_index} at #{storage_column_index}")
         break
       end
     end
-    if ($storage[storage_digit_index][storage_index] == 0)
+    if ($storage[storage_digit_index][storage_column_index] == 0)
       puts "Fatal error: Storage is empty"
       Process.exit()
     end
   end
-  $storage[storage_digit_index][storage_index] = 0
-  x1 = storage_digit_index*WIDTH+storage_index
+  $storage[storage_digit_index][storage_column_index] = 0
+  x1 = storage_digit_index*WIDTH+storage_column_index
   y1 = Y_ZERO
   x2 = index*WIDTH+to_x
   y2 = to_y + Y_ZERO + Y_OFFSET
@@ -349,9 +367,18 @@ if storage_count > 0
   end
 end
 
+first = true
 done = false
 while true
-  current_time = DateTime.now.to_time
+  if run_fast
+    if first
+      current_time = DateTime.new(1970, 1, 1, 0, 0, 0).to_time
+    else
+      current_time = current_time + 1
+    end
+  else
+    current_time = DateTime.now.to_time
+  end
   current = current_time.strftime("%H%M")
   verbose current
   if current != prev
@@ -363,11 +390,13 @@ while true
     # end
     for i in 0..3
       if current[i] != prev[i]
-        puts "#{prev} to #{current}"
+        verbose "#{prev[i]} to #{current[i]}"
         change(i, prev[i].to_i, current[i].to_i)
-        s = "R"
-        $sp.puts s
-        wait_response(s)
+        if !$dry_run
+          s = "R"
+          $sp.puts s
+          wait_response(s)
+        end
       end
     end
     if !$dry_run
@@ -377,5 +406,13 @@ while true
     end
     prev = current
   end
-  sleep(0.5)
+  if run_fast
+    if !first && (current == "0000")
+      puts "DONE"
+      Process.exit
+    end
+    first = false
+  else
+    sleep(0.5)
+  end
 end
