@@ -8,7 +8,11 @@ do_reset = false
 initial_time = ''
 storage_count = 0
 run_fast = false
+do_move_test = false
 $verbose = false
+do_goto = false
+goto_x = 0
+goto_y = 0
 
 OptionParser.new do |opts|
   opts.banner = "Usage: clock.rb [options] [portnumber]"
@@ -27,6 +31,14 @@ OptionParser.new do |opts|
   end
   opts.on("-f", "--fast", "Run fast") do |n|
     run_fast = true
+  end
+  opts.on("-m", "--movetest", "Run move test") do |n|
+    do_move_test = true
+  end
+  opts.on("-g x, y", "--goto x,y", Array, "Go to specified coordinate") do |c|
+    do_goto = true
+    goto_x = c[0]
+    goto_y = c[1]
   end
   opts.on("-v", "--verbose", "Verbose") do |n|
     $verbose = true
@@ -129,6 +141,10 @@ def move_to_storage(index,
   while ($storage[storage_digit_index][storage_column_index] > 0) && (storage_column_index < COLUMNS)
     verbose "Storage #{storage_digit_index}, #{storage_column_index} is used"
     storage_column_index = storage_column_index + 1
+    if storage_column_index >= COLUMNS
+      storage_column_index = 0
+      break
+    end
   end
   if $storage[storage_digit_index][storage_column_index] > 0
     # Look at the other digits
@@ -152,6 +168,7 @@ def move_to_storage(index,
   verbose "Mark storage #{storage_digit_index}, #{storage_column_index} as used"
   x2 = storage_digit_index*WIDTH+storage_column_index
   y2 = Y_ZERO
+  puts "TO STORAGE: #{storage_digit_index} #{storage_column_index} => #{x2}, #{y2}"
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -327,6 +344,30 @@ def change(index, prev, cur)
   end
 end
 
+def move_test()
+  poss = Array.new
+  poss << [ 0, 5 ]
+  poss << [ 7, 5 ]
+  poss << [ 14, 5 ]
+  poss << [ 21, 5 ]
+  poss << [ 25, 5 ]
+  index = 0
+  while true
+    x = poss[index][0]
+    y = poss[index][1]
+    puts "Go to #{x}, #{y}"
+    s = "M #{x.to_i()} #{y.to_i()}"
+    verbose "> #{s}"
+    $sp.puts s
+    wait_response(s)
+    sleep 2
+    index = index + 1
+    if index >= poss.size
+      index = 0
+    end
+  end
+end
+
 $sp = nil
 if !$dry_run
   portnum = 0
@@ -340,7 +381,20 @@ if !$dry_run
                        })
   sleep 6
   $sp.flush_input
-  s = "w 64 58"
+  if do_reset
+    $sp.puts('R')
+    Process.exit
+  end
+  if do_move_test
+    move_test()
+    Process.exit
+  end
+  if do_goto
+    puts("Go to #{goto_x} #{goto_y}")
+    $sp.puts("M #{goto_x} #{goto_y}")
+    Process.exit
+  end
+  s = "w 64 240"
   $sp.puts s
   wait_response(s)
 end
