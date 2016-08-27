@@ -13,25 +13,28 @@ const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
 const int MAGNET_LED_OUT = 10;
 
-const int MAGNET_HI = 64;
+const int MAGNET_HI = 255;
 const int MAGNET_LO = 50;
 const int ANGLE_UP = 78;
+const int ANGLE_HALF_DOWN = 95;
 const int ANGLE_DOWN = 100;
 
 const int SERVO_DELAY = 500; // ms
-const int PICKUP_HI_DELAY = 250; // ms
+const int PICKUP_HI_DELAY = 700;//250; // ms
+const int MAGNET_OFF_DELAY = 700; // ms
  
-const int STEP_DELAY = 150; // microseconds
-const int MIN_STEP_DELAY = 50; // microseconds
+const int STEP_DELAY = 250;//150; // microseconds
+const int MIN_STEP_DELAY = 100;//50; // microseconds
 
 // Distance between individual dots in the matrix, in steps
-int STEPS_PER_CELL = 100*4;
+const int STEPS_PER_CELL = 100*4; //!!398;
 
 // Cells from zero to storage row
-int Y_OFFSET = 5;
+const int Y_OFFSET = 5;
 
-int x_home = 125;
-int y_home = 3000 - STEPS_PER_CELL*Y_OFFSET;
+// Home position offset (empirically determined)
+int x_home = 110;
+int y_home = 1050;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -82,9 +85,9 @@ void setup()
     digitalWrite(X_Y_RESET, HIGH);
     delay(10);
 
+    Serial.println("Homing");
     home();
-    
-    Serial.println("Ball Clock ready");
+    Serial.println("Ball Clock ready");    
 }
 
 void magnet_full()
@@ -111,13 +114,14 @@ void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
         digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
+    int step_delay = slow ? 2*STEP_DELAY : MIN_STEP_DELAY;
     digitalWrite(dir_pin, !reverse);
     for (int i = 0; i < steps; ++i)
     {
         digitalWrite(step_pin, HIGH);
-        delayMicroseconds(STEP_DELAY);
+        delayMicroseconds(step_delay);
         digitalWrite(step_pin, LOW);
-        delayMicroseconds(STEP_DELAY);
+        delayMicroseconds(step_delay);
     }
     digitalWrite(INTERNAL_LED, LOW);
     if (enable && enable_enabled)
@@ -199,6 +203,7 @@ void home(bool _goToZero)
     bool x_limit_hit = digitalRead(X_LIMIT);
     bool y_limit_hit = digitalRead(Y_LIMIT);
     const int steps = 1;
+    int count = 0;
     while (x_limit_hit || y_limit_hit)
     {
         if (x_limit_hit)
@@ -207,23 +212,40 @@ void home(bool _goToZero)
             step(MOTOR_Y, false, steps, false);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
+        if (++count > STEPS_PER_CELL)
+        {       
+            Serial.print("Limit still hit after ");
+            Serial.print(count);
+            Serial.println(" steps - halting");
+            while (1)
+                delay(10);
+        }
     }
 
+    count = 0;
+    const bool slow = false;
     do
     {
         if (!x_limit_hit)
-            step(MOTOR_X, true, steps, false, true);
+            step(MOTOR_X, true, steps, false, slow);
         if (!y_limit_hit)
-            step(MOTOR_Y, true, steps, false, true);
+            step(MOTOR_Y, true, steps, false, slow);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
+        if (++count > 2*STEPS_PER_CELL*4*(5+2))
+        {       
+            Serial.print("Limit not hit after ");
+            Serial.print(count);
+            Serial.println(" steps - halting");
+            while (1)
+                delay(10);
+        }
     }
     while (!x_limit_hit || !y_limit_hit);
 
     if (_goToZero)
     {
-        step(MOTOR_X, false, x_home);
-        step(MOTOR_Y, false, y_home);
+        step_xy(x_home, y_home);
     }
 
     digitalWrite(ENABLE, HIGH);
@@ -232,10 +254,10 @@ void home(bool _goToZero)
     current_y = 0;
 }
 
-void pickup()
+void pickup(bool half = false)
 {
     //servo.attach(SERVO_OUT);
-    servo.write(ANGLE_DOWN);
+    servo.write(half ? ANGLE_HALF_DOWN : ANGLE_DOWN);
     magnet_full();
     delay(PICKUP_HI_DELAY);
     servo.write(ANGLE_UP);
@@ -264,7 +286,7 @@ void drop()
     delay(SERVO_DELAY);
     //servo.detach();
     magnet_off();
-    delay(500);
+    delay(MAGNET_OFF_DELAY);
     servo.write(ANGLE_UP);
     delay(SERVO_DELAY);
 }
@@ -307,7 +329,8 @@ const int MAX_COORDS = 32;
 
 int get_int(const char* buffer, int len)
 {
-    char intbuf[BUF_SIZE];    memcpy(intbuf, buffer, max(BUF_SIZE-1, len));
+    char intbuf[BUF_SIZE];
+    memcpy(intbuf, buffer, max(BUF_SIZE-1, len));
     intbuf[len] = 0;
     return atoi(intbuf);
 }
@@ -391,20 +414,20 @@ void process(const char* buffer)
     case 'o':
         {
             int index;
+            const int old_x_home = x_home;
+            const int old_y_home = y_home;
             x_home = get_int(buffer+1, BUF_SIZE-1, index); 
             y_home = get_int(buffer+index, BUF_SIZE-1, index); 
             home();
+            Serial.print("OK ");
+            Serial.print(buffer);
+            Serial.print(" (was ");
+            Serial.print(old_x_home);
+            Serial.print(" ");
+            Serial.print(old_y_home);
+            Serial.println(")");
         }
-        break;
-
-    case 'q':
-        {
-            int index;
-            int x = get_int(buffer+1, BUF_SIZE-1, index); 
-            int y = get_int(buffer+index, BUF_SIZE-1, index); 
-            step_xy(x, y);
-        }
-        break;
+        return;
 
     case 'e':
     case 'E':
@@ -432,6 +455,11 @@ void process(const char* buffer)
     case 'P':
     case 'p':
         pickup();
+        break;
+
+    case 'Q':
+    case 'q':
+        pickup(true);
         break;
 
     case 'D':
