@@ -15,16 +15,17 @@ const int MAGNET_LED_OUT = 10;
 
 const int MAGNET_HI = 255;
 const int MAGNET_LO = 50;
-const int ANGLE_UP = 78;
+const int ANGLE_UP = 60;
 const int ANGLE_HALF_DOWN = 95;
-const int ANGLE_DOWN = 100;
+const int ANGLE_DOWN = 95;
 
 const int SERVO_DELAY = 500; // ms
 const int PICKUP_HI_DELAY = 700;//250; // ms
 const int MAGNET_OFF_DELAY = 700; // ms
  
-const int STEP_DELAY = 250;//150; // microseconds
-const int MIN_STEP_DELAY = 100;//50; // microseconds
+const int STEP_DELAY = 250; // microseconds
+const int MIN_STEP_DELAY = 50; // microseconds
+const int RAMP_COUNT = 10;
 
 // Distance between individual dots in the matrix, in steps
 const int STEPS_PER_CELL = 100*4; //!!398;
@@ -33,7 +34,7 @@ const int STEPS_PER_CELL = 100*4; //!!398;
 const int Y_OFFSET = 5;
 
 // Home position offset (empirically determined)
-int x_home = 110;
+int x_home = 200;
 int y_home = 1050;
 
 int magnet_hi_pwr = MAGNET_HI;
@@ -114,7 +115,7 @@ void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
         digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
-    int step_delay = slow ? 2*STEP_DELAY : MIN_STEP_DELAY;
+    int step_delay = slow ? STEP_DELAY : STEP_DELAY;
     digitalWrite(dir_pin, !reverse);
     for (int i = 0; i < steps; ++i)
     {
@@ -128,6 +129,8 @@ void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
         digitalWrite(ENABLE, HIGH);
 }
 
+//#define DEBUG_ACCELERATION
+
 void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
 {
     if (enable && enable_enabled)
@@ -136,15 +139,21 @@ void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
     digitalWrite(Y_DIR, y_steps > 0);
 
     const int common_steps = min(abs(x_steps), abs(y_steps));
-    int step_delay = slow ? 2*STEP_DELAY : STEP_DELAY;
+    int step_delay = slow ? STEP_DELAY : STEP_DELAY;
     const int step_delay_max = step_delay;
-    const int ramp_count = 10;
-    const int ramp_length = STEP_DELAY*ramp_count;
+    const int ramp_length = (STEP_DELAY - MIN_STEP_DELAY)*RAMP_COUNT;
+
+    // 1) Step both X and Y
+    
     int count = 0;
     int ramp_limit = min(ramp_length, common_steps/2);
+#ifdef DEBUG_ACCELERATION
+    Serial.print("Common ");
+    Serial.println(common_steps);
+#endif
     for (int i = 0; i < common_steps; ++i)
     {
-        if (++count > ramp_count)
+        if (++count >= RAMP_COUNT)
         {
             count = 0;
             if (i < ramp_limit)
@@ -167,12 +176,21 @@ void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
         digitalWrite(Y_STEP, LOW);
         delayMicroseconds(step_delay);
     }
+
+    // 2) Do remaining steps in a single direction
+
     const int steps_left = max(abs(x_steps), abs(y_steps)) - common_steps;
     const int step_pin = (abs(x_steps) > abs(y_steps)) ? X_STEP : Y_STEP;
     ramp_limit = min(ramp_length, steps_left/2);
+#ifdef DEBUG_ACCELERATION
+    Serial.print("Left ");
+    Serial.println(steps_left);
+    Serial.print("Limit ");
+    Serial.println(ramp_limit);
+#endif
     for (int i = 0; i < steps_left; ++i)
     {
-        if (++count > ramp_count)
+        if (++count >= RAMP_COUNT)
         {
             count = 0;
             if (i < ramp_limit)
@@ -187,6 +205,11 @@ void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
                 if (step_delay < step_delay_max)
                     ++step_delay;
             }
+#ifdef DEBUG_ACCELERATION
+            Serial.print(i);
+            Serial.print(": Delay ");
+            Serial.println(step_delay);
+#endif
         }
         digitalWrite(step_pin, HIGH);
         delayMicroseconds(step_delay);
