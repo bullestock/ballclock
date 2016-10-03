@@ -344,7 +344,7 @@ def change(index, prev, cur)
   end
 end
 
-def move_test()
+def move_test1()
   poss = Array.new
   poss << [ 0, 5 ]
   poss << [ 7, 5 ]
@@ -368,6 +368,26 @@ def move_test()
   end
 end
 
+def move_test()
+  count = 0
+  while true
+    s = "M 0 5 25 5"
+    verbose "> #{s}"
+    $sp.puts s
+    wait_response(s)
+    count = count + 1
+    puts("Moved #{count} times")
+    sleep 2
+    s = "M 25 5 0 5"
+    verbose "> #{s}"
+    $sp.puts s
+    wait_response(s)
+    count = count + 1
+    puts("Moved #{count} times")
+    sleep 2
+  end
+end
+
 $sp = nil
 if !$dry_run
   portnum = 0
@@ -379,14 +399,16 @@ if !$dry_run
                          'data_bits' => 8,
                          'parity' => SerialPort::NONE
                        })
-  sleep 6
-  $sp.flush_input
+  begin
+    begin
+      line = $sp.gets
+    end while !line || line.empty?
+    line.strip!
+    puts "INIT: >#{line}<"
+  end while line != "Ball Clock ready"
+  
   if do_reset
     $sp.puts('R')
-    Process.exit
-  end
-  if do_move_test
-    move_test()
     Process.exit
   end
   if do_goto
@@ -394,9 +416,14 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
-  s = "w 64 240"
+  # Magnet power
+  s = "w 128 255"
   $sp.puts s
   wait_response(s)
+  if do_move_test
+    move_test()
+    Process.exit
+  end
 end
 
 tz = ENV['TZ']
@@ -437,21 +464,24 @@ while true
   verbose current
   if current != prev
     puts "#{prev} to #{current}"
-    # if !$dry_run
-    #   $sp.flush_input
-    #   $sp.puts "E 0"
-    #   wait_response()
-    # end
+    if !$dry_run
+      $sp.flush_input
+      $sp.puts "R"
+      wait_response("R")
+      $sp.flush_input
+      $sp.puts "E 0"
+      wait_response("E 0")
+    end
     for i in 0..3
       if current[i] != prev[i]
         verbose "#{prev[i]} to #{current[i]}"
         change(i, prev[i].to_i, current[i].to_i)
-        if !$dry_run
-          s = "R"
-          $sp.puts s
-          wait_response(s)
-        end
       end
+    end
+    if !$dry_run
+      $sp.flush_input
+      $sp.puts "E 1"
+      wait_response()
     end
     if !$dry_run
       $sp.flush_input
