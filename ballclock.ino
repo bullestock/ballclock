@@ -14,7 +14,7 @@ const int MAGNET_OUT = 11;
 const int MAGNET_LED_OUT = 10;
 
 const int MAGNET_HI = 255;
-const int MAGNET_LO = 50;
+const int MAGNET_LO = 100;
 const int ANGLE_UP = 60;
 const int ANGLE_HALF_DOWN = 95;
 const int ANGLE_DOWN = 95;
@@ -34,8 +34,8 @@ const int STEPS_PER_CELL = 100*4; //!!398;
 const int Y_OFFSET = 5;
 
 // Home position offset (empirically determined)
-int x_home = 200;
-int y_home = 1050;
+int x_home = 225;
+int y_home = 1000;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -88,7 +88,7 @@ void setup()
 
     Serial.println("Homing");
     home();
-    Serial.println("Ball Clock ready");    
+    Serial.println("Ball Clock ready");
 }
 
 void magnet_full()
@@ -526,9 +526,8 @@ void process(const char* buffer)
         break;
 
     default:
-        Serial.print("Error: Unknown command '");
-        Serial.print(buffer[0]);
-        Serial.println("'");
+        Serial.print("Error: Unknown command: ");
+        Serial.println(buffer);
         return;
     }
     Serial.print("OK ");
@@ -547,7 +546,7 @@ void loop()
        char c = Serial.read();
        if ((c == '\r') || (c == '\n'))
        {
-           buffer[index] = 0;
+           memset(buffer+index, 0, BUF_SIZE-index);
            index = 0;
            process(buffer);
        }
@@ -557,6 +556,7 @@ void loop()
            {
                Serial.println("Error: Line too long");
                index = 0;
+               memset(buffer, 0, BUF_SIZE);
                return;
            }
            buffer[index++] = c;
