@@ -119,6 +119,7 @@ def move_ball(index,
     $sp.flush_input
     $sp.puts s
     wait_response(s)
+    sleep 0.5
   end
 end
 
@@ -417,7 +418,9 @@ if !$dry_run
     Process.exit
   end
   # Magnet power
-  s = "w 128 255"
+  # If HIGH is 255, we pick up multiple balls
+  # If LOW is below 80, we drop the ball when moving
+  s = "w 80 128"
   $sp.puts s
   wait_response(s)
   if do_move_test
@@ -465,9 +468,11 @@ while true
   if current != prev
     puts "#{prev} to #{current}"
     if !$dry_run
-      $sp.flush_input
-      $sp.puts "R"
-      wait_response("R")
+      if false
+        $sp.flush_input
+        $sp.puts "R"
+        wait_response("R")
+      end
       $sp.flush_input
       $sp.puts "E 0"
       wait_response("E 0")
@@ -481,7 +486,7 @@ while true
     if !$dry_run
       $sp.flush_input
       $sp.puts "E 1"
-      wait_response()
+      wait_response("E 1")
     end
     if !$dry_run
       $sp.flush_input
