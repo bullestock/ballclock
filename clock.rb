@@ -377,14 +377,14 @@ def move_test()
     wait_response(s)
     count = count + 1
     puts("Moved #{count} times")
-    sleep 2
+    sleep 0.2
     s = "M 25 5 0 5"
     verbose "> #{s}"
     $sp.puts s
     wait_response(s)
     count = count + 1
     puts("Moved #{count} times")
-    sleep 2
+    sleep 0.2
   end
 end
 
