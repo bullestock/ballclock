@@ -19,9 +19,9 @@ const int ANGLE_UP = 60;
 const int ANGLE_HALF_DOWN = 95;
 const int ANGLE_DOWN = 95;
 
-const int SERVO_DELAY = 500; // ms
-const int PICKUP_HI_DELAY = 700;//250; // ms
-const int MAGNET_OFF_DELAY = 700; // ms
+const int SERVO_DELAY = 250; // ms
+const int PICKUP_HI_DELAY = 250; // ms
+const int MAGNET_OFF_DELAY = 100; // ms
  
 const int STEP_DELAY = 250; // microseconds
 const int MIN_STEP_DELAY = 50; // microseconds
