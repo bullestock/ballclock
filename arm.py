@@ -18,7 +18,7 @@ width = 13
 rail_w = 3
 rail_th = 5
 
-move_distance = 10
+move_distance = 7
 
 frame_outer_w = rail_w*2
 frame_w = block_w+2*frame_outer_w
@@ -51,11 +51,11 @@ def frame():
     return o
 
 def frame_hole():
-    i = up(frame_outer_w)(ccube([block_w+0.2, width+frame_front_th, frame_h]))
+    i = up(frame_outer_w-4)(ccube([block_w+0.2, width+frame_front_th, frame_h]))
     return i
 
 def notch():
-    r = ccube([rail_w+1, rail_th+0.2, frame_h])
+    r = ccube([rail_w+1, rail_th+0.6, frame_h])
     return r
 
 def servo_block():
