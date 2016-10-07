@@ -74,13 +74,6 @@ void setup()
     servo.attach(SERVO_OUT);
     servo.write(ANGLE_UP);
     
-    for (int i = 0; i < 3; ++i)
-    {
-        digitalWrite(INTERNAL_LED, HIGH);
-        delay(50);
-        digitalWrite(INTERNAL_LED, LOW);
-        delay(50);
-    }
     Serial.begin(57600);
 
     digitalWrite(ENABLE, LOW);
@@ -313,9 +306,8 @@ void drop()
     delay(servo_delay);
     //servo.detach();
     magnet_off();
-    delay(magnet_off_delay);
     servo.write(ANGLE_UP);
-    delay(servo_delay);
+    delay(magnet_off_delay);
 }
 
 void move(int x, int y)
