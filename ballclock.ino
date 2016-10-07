@@ -40,6 +40,10 @@ int y_home = 1000;
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
 
+int servo_delay = SERVO_DELAY;
+int pickup_hi_delay = PICKUP_HI_DELAY;
+int magnet_off_delay = MAGNET_OFF_DELAY;
+
 const int MOTOR_X = 0;
 const int MOTOR_Y = 1;
 
@@ -282,9 +286,9 @@ void pickup(bool half = false)
     //servo.attach(SERVO_OUT);
     servo.write(half ? ANGLE_HALF_DOWN : ANGLE_DOWN);
     magnet_full();
-    delay(PICKUP_HI_DELAY);
+    delay(pickup_hi_delay);
     servo.write(ANGLE_UP);
-    delay(SERVO_DELAY);
+    delay(servo_delay);
     //servo.detach();
     magnet_half();
 }
@@ -293,7 +297,7 @@ void lift()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_UP);
-    delay(SERVO_DELAY);
+    delay(servo_delay);
     //servo.detach();
 }
 
@@ -306,12 +310,12 @@ void drop()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
-    delay(SERVO_DELAY);
+    delay(servo_delay);
     //servo.detach();
     magnet_off();
-    delay(MAGNET_OFF_DELAY);
+    delay(magnet_off_delay);
     servo.write(ANGLE_UP);
-    delay(SERVO_DELAY);
+    delay(servo_delay);
 }
 
 void move(int x, int y)
@@ -496,6 +500,16 @@ void process(const char* buffer)
             int index;
             magnet_lo_pwr = get_int(buffer+1, BUF_SIZE-1, index); 
             magnet_hi_pwr = get_int(buffer+index, BUF_SIZE-1, index); 
+        }
+        break;
+
+    case 's':
+        // Set delays
+        {
+            int index;
+            servo_delay = get_int(buffer+1, BUF_SIZE-1, index);
+            pickup_hi_delay = get_int(buffer+index, BUF_SIZE-1, index);
+            magnet_off_delay = get_int(buffer+index, BUF_SIZE-1, index);
         }
         break;
         
