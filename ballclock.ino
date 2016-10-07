@@ -313,7 +313,7 @@ void drop()
 
 void move(int x, int y)
 {
-    if ((x > 30) || (y > 20))
+    if ((x > 35) || (y > 20))
        return;
     const int scaleFactor = STEPS_PER_CELL;
     int current_x_step = current_x*scaleFactor;
