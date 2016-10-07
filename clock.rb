@@ -420,7 +420,7 @@ if !$dry_run
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
-  s = "w 80 128"
+  s = "w 90 128"
   $sp.puts s
   wait_response(s)
   if do_move_test
