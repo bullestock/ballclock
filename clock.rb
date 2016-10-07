@@ -148,8 +148,17 @@ def move_to_storage(index,
     end
   end
   if $storage[storage_digit_index][storage_column_index] > 0
-    # Look at the other digits
-    for storage_digit_index in 0..3
+    # No room at current digit. Look at the other digits
+    if index == 0
+      candidates = [ 1, 2, 3 ]
+    elsif index == 1
+      candidates = [ 0, 2, 3 ]
+    elsif index == 2
+      candidates = [ 1, 3, 0 ]
+    elsif index == 3
+      candidates = [ 2, 1, 0 ]
+    end
+    for storage_digit_index in candidates
       for storage_column_index in 0..COLUMNS-1
         if ($storage[storage_digit_index][storage_column_index] == 0)
           break
@@ -191,9 +200,18 @@ def fetch_from_storage(index,
   end
   verbose("-- #{index}: Storage at #{storage_column_index}: #{$storage[storage_digit_index][storage_column_index]}")  
   if ($storage[storage_digit_index][storage_column_index] == 0)
-    # Look at the other digits
+    # No balls found at current digit. Look at the other digits
     verbose("-- #{index}: Look in other bins")
-    for storage_digit_index in 0..3
+    if index == 0
+      candidates = [ 1, 2, 3 ]
+    elsif index == 1
+      candidates = [ 0, 2, 3 ]
+    elsif index == 2
+      candidates = [ 1, 3, 0 ]
+    elsif index == 3
+      candidates = [ 2, 1, 0 ]
+    end
+    for storage_digit_index in candidates
       storage_column_index = COLUMNS-1
       while ($storage[storage_digit_index][storage_column_index] == 0) && (storage_column_index > 0)
         verbose "Storage #{storage_digit_index}, #{storage_column_index} is empty"
@@ -453,6 +471,7 @@ end
 
 first = true
 done = false
+since_home = 0
 while true
   if run_fast
     if first
@@ -468,14 +487,17 @@ while true
   if current != prev
     puts "#{prev} to #{current}"
     if !$dry_run
-      if false
-        $sp.flush_input
-        $sp.puts "R"
-        wait_response("R")
-      end
       $sp.flush_input
       $sp.puts "E 0"
       wait_response("E 0")
+    end
+    since_home = since_home+1
+    if since_home > 10
+      puts "Periodic homing"
+      $sp.flush_input
+      $sp.puts "R"
+      wait_response("R")
+      since_home = 0
     end
     for i in 0..3
       if current[i] != prev[i]
