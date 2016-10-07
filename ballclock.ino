@@ -42,7 +42,8 @@ int magnet_lo_pwr = MAGNET_LO;
 
 int servo_delay = SERVO_DELAY;
 int pickup_hi_delay = PICKUP_HI_DELAY;
-int magnet_off_delay = MAGNET_OFF_DELAY;
+int magnet_off_delay1 = MAGNET_OFF_DELAY;
+int magnet_off_delay2 = MAGNET_OFF_DELAY;
 
 const int MOTOR_X = 0;
 const int MOTOR_Y = 1;
@@ -303,15 +304,17 @@ void drop()
 {
     //servo.attach(SERVO_OUT);
     servo.write(ANGLE_DOWN);
-    delay(servo_delay);
+    delay(magnet_off_delay1);
     //servo.detach();
     magnet_off();
+    delay(magnet_off_delay2);
     servo.write(ANGLE_UP);
-    delay(magnet_off_delay);
 }
 
 void move(int x, int y)
 {
+    if ((x > 30) || (y > 20))
+       return;
     const int scaleFactor = STEPS_PER_CELL;
     int current_x_step = current_x*scaleFactor;
     int current_y_step = current_y*scaleFactor;
@@ -499,9 +502,14 @@ void process(const char* buffer)
         // Set delays
         {
             int index;
-            servo_delay = get_int(buffer+1, BUF_SIZE-1, index);
-            pickup_hi_delay = get_int(buffer+index, BUF_SIZE-1, index);
-            magnet_off_delay = get_int(buffer+index, BUF_SIZE-1, index);
+            const char* p = buffer+1;
+            servo_delay = get_int(p, BUF_SIZE-1, index);
+            p += index;
+            pickup_hi_delay = get_int(p, BUF_SIZE-1, index);
+            p += index;
+            magnet_off_delay1 = get_int(p, BUF_SIZE-1, index);
+            p += index;
+            magnet_off_delay2 = get_int(p, BUF_SIZE-1, index);
         }
         break;
         

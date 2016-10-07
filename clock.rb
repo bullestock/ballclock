@@ -119,7 +119,7 @@ def move_ball(index,
     $sp.flush_input
     $sp.puts s
     wait_response(s)
-    sleep 0.5
+    #sleep 0.5
   end
 end
 
@@ -438,7 +438,11 @@ if !$dry_run
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
-  s = "w 90 128"
+  s = "w 255 128"
+  $sp.puts s
+  wait_response(s)
+  # Tune delays
+  s = "s 180 180 120 50"
   $sp.puts s
   wait_response(s)
   if do_move_test
