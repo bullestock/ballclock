@@ -77,98 +77,100 @@ padding = -2
 top = padding
 bottom = height-padding
 
-# Move left to right keeping track of the current x position for drawing shapes.
-x = 0
-
 # Load font.
 font = ImageFont.truetype("/usr/share/fonts/truetype/arkpandora/AerialMono.ttf", 32)
 
-cur_digit = 0
 digits = [ 0, 0, 0, 0 ]
 maxval = [ 2, 9, 5, 9 ]
-nof_storage = 10
 
 NOF_DIGITS = 4
 BLINK_DELAY = 0.25
 KEY_DELAY = 0.5
 
-blink_state = True
-
-last_blink = time.time()
-
-last_keypress = time.time()
-
 while True:
-    k1 = not GPIO.input(K1_pin)
-    k2 = not GPIO.input(K2_pin)
-    k3 = not GPIO.input(K3_pin)
-    k4 = not GPIO.input(K4_pin)
+    cur_digit = 0
+    nof_storage = 10
 
-    # Draw a black filled box to clear the image.
-    draw.rectangle((0,0,width,height), outline=0, fill=0)
+    blink_state = True
 
-    now = time.time()
+    last_blink = time.time()
+
+    last_keypress = time.time()
+
+    while True:
+        k1 = not GPIO.input(K1_pin)
+        k2 = not GPIO.input(K2_pin)
+        k3 = not GPIO.input(K3_pin)
+        k4 = not GPIO.input(K4_pin)
+
+        # Draw a black filled box to clear the image.
+        draw.rectangle((0,0,width,height), outline=0, fill=0)
+
+        now = time.time()
     
-    if k1 or k2 or k3:
-        if now - last_keypress >= KEY_DELAY:
-            last_keypress = now
-            if k1:
-                # Up
-                v = digits[cur_digit] + 1
-                if v > maxval[cur_digit]:
-                    v = 0
-                digits[cur_digit] = v
-            elif k2:
-                # Down
-                v = digits[cur_digit] - 1
-                if v < 0:
-                    v = maxval[cur_digit]
-                digits[cur_digit] = v
-            elif k3:
-                # Next digit
-                v = cur_digit + 1
-                if v >= NOF_DIGITS:
-                    v = 0
-                cur_digit = v
+        if k1 or k2 or k3:
+            if now - last_keypress >= KEY_DELAY:
+                last_keypress = now
+                if k1:
+                    # Up
+                    v = digits[cur_digit] + 1
+                    if v > maxval[cur_digit]:
+                        v = 0
+                    digits[cur_digit] = v
+                elif k2:
+                    # Down
+                    v = digits[cur_digit] - 1
+                    if v < 0:
+                        v = maxval[cur_digit]
+                    digits[cur_digit] = v
+                elif k3:
+                    # Next digit
+                    v = cur_digit + 1
+                    if v >= NOF_DIGITS:
+                        v = 0
+                    cur_digit = v
 
-    if k4:
-        # Start
-        break
+        if k4:
+            # Start
+            break
 
-    s = ''
-    for i in range(0, NOF_DIGITS):
-        if (i == cur_digit) and blink_state:
-            s = s + "_"
-        else:
-            s = s + ("%d" % digits[i])
-        if i == 1:
-            s = s + ":"
+        s = ''
+        for i in range(0, NOF_DIGITS):
+            if (i == cur_digit) and blink_state:
+                s = s + "_"
+            else:
+                s = s + ("%d" % digits[i])
+            if i == 1:
+                s = s + ":"
             
 
-    # Dynamically adjust max for digit 2
-    if digits[0] > 1:
-        maxval[1] = 3
-    else:
-        maxval[1] = 9
+        # Dynamically adjust max for digit 2
+        if digits[0] > 1:
+            maxval[1] = 3
+        else:
+            maxval[1] = 9
 
-    draw.text((x, top), s, font = font, fill = 255)
+        draw.text((0, top), s, font = font, fill = 255)
 
+        disp.image(image)
+        disp.display()
+
+        if time.time() - last_blink > BLINK_DELAY:
+            blink_state = not blink_state
+            last_blink = time.time()
+
+    # Done setting time
+    s = ''
+    for i in range(0, NOF_DIGITS):
+        s = s + ("%d" % digits[i])
+        if i == 1:
+            s = s + ":"
+    s = s + "S"
+    draw.text((0, top), s, font = font, fill = 255)
     disp.image(image)
     disp.display()
 
-    if time.time() - last_blink > BLINK_DELAY:
-        blink_state = not blink_state
-        last_blink = time.time()
+    subprocess.call("/usr/bin/ruby clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
 
-s = ''
-for i in range(0, NOF_DIGITS):
-    s = s + ("%d" % digits[i])
-    if i == 1:
-        s = s + ":"
-s = s + "R"
-draw.text((x, top), s, font = font, fill = 255)
-disp.image(image)
-disp.display()
-
-# Do it
-subprocess.call("/usr/bin/ruby clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
+    while not GPIO.input(K4_pin):
+        time.sleep(1)
