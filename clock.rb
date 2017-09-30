@@ -78,7 +78,8 @@ def wait_response(s)
   end while !line || line.empty?
   line.strip!
   verbose "Reply: #{line}"
-  if line != "OK #{s}"
+  expected = "OK #{s}"
+  if line[0..expected.size-1] != expected
     puts "ERROR: Expected 'OK #{s}', got '#{line}'"
     Process.exit()
   end
@@ -119,7 +120,6 @@ def move_ball(index,
     $sp.flush_input
     $sp.puts s
     wait_response(s)
-    #sleep 0.5
   end
 end
 
@@ -435,16 +435,21 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
+  # Set origin
+  s = "o 250 1025" # 280
+  $sp.puts s
+  wait_response(s)
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
   s = "w 255 128"
   $sp.puts s
   wait_response(s)
-  # Tune delays
-  s = "s 180 180 120 50"
-  $sp.puts s
-  wait_response(s)
+  # Tune delays: servo pickup_hi magnet_1 magnet_2
+  s = "s 300 300 250 250"
+  s = "s 150 150 100 50"
+  #$sp.puts s
+  #wait_response(s)
   if do_move_test
     move_test()
     Process.exit
@@ -496,7 +501,7 @@ while true
       wait_response("E 0")
     end
     since_home = since_home+1
-    if since_home > 10
+    if since_home > 2
       puts "Periodic homing"
       $sp.flush_input
       $sp.puts "R"
