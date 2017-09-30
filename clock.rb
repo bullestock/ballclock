@@ -525,6 +525,7 @@ while true
       wait_response("M 35 0")
     end
     prev = current
+    `python showtime.py #{current[0]}#{current[1]}:#{current[2]}#{current[3]}R`
   end
   if run_fast
     if !first && (current == "0000")
