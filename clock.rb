@@ -1,6 +1,11 @@
 require 'date'
 require 'serialport'
 require 'optparse'
+require 'rpi_gpio'
+
+RPi::GPIO.set_numbering :bcm
+PIN = 23
+RPi::GPIO.setup PIN, :as => :input, :pull => :up
 
 $dry_run = false
 from_zero = false
@@ -66,6 +71,19 @@ WIDTH = 5+2
 # First storage: (0, Y_ZERO) to (4, Y_ZERO)
 # First digit:   (0, Y_ZERO+Y_OFFSET) to (0, Y_ZERO+Y_OFFSET+6)
 
+$abort_count = 0
+
+def check_abort()
+  if RPi::GPIO.low? 23
+    puts "pressed"
+    $abort_count = $abort_count+1
+  end
+  if $abort_count > 6
+    puts "ABORT"
+    Process.exit()
+  end
+end
+
 def verbose(s)
   if $verbose
     puts s
@@ -121,6 +139,7 @@ def move_ball(index,
     $sp.puts s
     wait_response(s)
   end
+  check_abort()
 end
 
 $storage = []
@@ -179,6 +198,7 @@ def move_to_storage(index,
   x2 = storage_digit_index*WIDTH+storage_column_index
   y2 = Y_ZERO
   puts "TO STORAGE: #{storage_digit_index} #{storage_column_index} => #{x2}, #{y2}"
+  check_abort()
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -232,6 +252,7 @@ def fetch_from_storage(index,
   y1 = Y_ZERO
   x2 = index*WIDTH+to_x
   y2 = to_y + Y_ZERO + Y_OFFSET
+  check_abort()
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -481,6 +502,8 @@ end
 first = true
 done = false
 since_home = 0
+abort_count = 0
+
 while true
   if run_fast
     if first
@@ -503,6 +526,7 @@ while true
     since_home = since_home+1
     if since_home > 2
       puts "Periodic homing"
+      check_abort()
       $sp.flush_input
       $sp.puts "R"
       wait_response("R")
@@ -536,4 +560,5 @@ while true
   else
     sleep(0.5)
   end
+  check_abort()
 end
