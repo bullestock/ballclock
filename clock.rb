@@ -520,8 +520,8 @@ while true
     puts "#{prev} to #{current}"
     if !$dry_run
       $sp.flush_input
-      $sp.puts "E 0"
-      wait_response("E 0")
+      $sp.puts "E 1"
+      wait_response("E 1")
     end
     since_home = since_home+1
     if since_home > 2
