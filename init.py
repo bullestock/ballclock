@@ -78,17 +78,22 @@ top = padding
 bottom = height-padding
 
 # Load font.
-font = ImageFont.truetype("/usr/share/fonts/truetype/arkpandora/AerialMono.ttf", 32)
+font = ImageFont.truetype("/usr/share/fonts/truetype/arkpandora/AerialMono.ttf", 24)
 
 digits = [ 0, 0, 0, 0 ]
 maxval = [ 2, 9, 5, 9 ]
 
 NOF_DIGITS = 4
+MAX_STORAGE = 20
 BLINK_DELAY = 0.25
 KEY_DELAY = 0.5
 
 while True:
+
+    # Let user set parameters
+    
     cur_digit = 0
+    digits_mode = True
     nof_storage = 10
 
     blink_state = True
@@ -111,37 +116,60 @@ while True:
         if k1 or k2 or k3:
             if now - last_keypress >= KEY_DELAY:
                 last_keypress = now
-                if k1:
-                    # Up
-                    v = digits[cur_digit] + 1
-                    if v > maxval[cur_digit]:
-                        v = 0
-                    digits[cur_digit] = v
-                elif k2:
-                    # Down
-                    v = digits[cur_digit] - 1
-                    if v < 0:
-                        v = maxval[cur_digit]
-                    digits[cur_digit] = v
-                elif k3:
-                    # Next digit
-                    v = cur_digit + 1
-                    if v >= NOF_DIGITS:
-                        v = 0
-                    cur_digit = v
-
+                if digits_mode:
+                    if k1:
+                        # Up
+                        v = digits[cur_digit] + 1
+                        if v > maxval[cur_digit]:
+                            v = 0
+                        digits[cur_digit] = v
+                    elif k2:
+                        # Down
+                        v = digits[cur_digit] - 1
+                        if v < 0:
+                            v = maxval[cur_digit]
+                        digits[cur_digit] = v
+                    elif k3:
+                        # Next digit, or enter storage setting mode
+                        v = cur_digit + 1
+                        if v >= NOF_DIGITS:
+                            digits_mode = False
+                        else:
+                            cur_digit = v
+                else:
+                    if k1:
+                        # Up
+                        v = nof_storage + 1
+                        if nof_storage > MAX_STORAGE:
+                            v = 0
+                        nof_storage = v
+                    elif k2:
+                        # Down
+                        v = nof_storage - 1
+                        if v < 0:
+                            v = MAX_STORAGE-1
+                        nof_storage = v
+                    elif k3:
+                        # Enter time setting mode
+                        digits_mode = True
+                    
         if k4:
             # Start
             break
 
         s = ''
         for i in range(0, NOF_DIGITS):
-            if (i == cur_digit) and blink_state:
+            if digits_mode and (i == cur_digit) and blink_state:
                 s = s + "_"
             else:
                 s = s + ("%d" % digits[i])
             if i == 1:
                 s = s + ":"
+        s += "/"
+        if not digits_mode and blink_state:
+            s += "_" * len(("%d" % nof_storage))
+        else:
+            s += "%d" % nof_storage
             
 
         # Dynamically adjust max for digit 2
