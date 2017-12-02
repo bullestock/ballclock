@@ -80,6 +80,12 @@ bottom = height-padding
 # Load font.
 font = ImageFont.truetype("/usr/share/fonts/truetype/arkpandora/AerialMono.ttf", 24)
 
+cur_time = subprocess.check_output("/bin/date +%H:%M:%S", shell = True)
+draw.text((0, top), cur_time.replace('\n', ''), font = font, fill = 255)
+disp.image(image)
+disp.display()
+time.sleep(2)
+
 digits = [ 0, 0, 0, 0 ]
 maxval = [ 2, 9, 5, 9 ]
 
@@ -198,7 +204,7 @@ while True:
     disp.image(image)
     disp.display()
 
-    subprocess.call("/usr/bin/ruby clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
+    subprocess.call("/usr/bin/ruby /home/pi/ballclock/clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
 
     while not GPIO.input(K4_pin):
         time.sleep(1)
