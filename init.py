@@ -70,9 +70,6 @@ image = Image.new('1', (width, height))
 # Get drawing object to draw on image.
 draw = ImageDraw.Draw(image)
 
-# Draw a black filled box to clear the image.
-draw.rectangle((0,0,width,height), outline=0, fill=0)
-
 padding = -2
 top = padding
 bottom = height-padding
@@ -80,11 +77,20 @@ bottom = height-padding
 # Load font.
 font = ImageFont.truetype("/usr/share/fonts/truetype/arkpandora/AerialMono.ttf", 24)
 
-cur_time = subprocess.check_output("/bin/date +%H:%M:%S", shell = True)
-draw.text((0, top), cur_time.replace('\n', ''), font = font, fill = 255)
-disp.image(image)
-disp.display()
-time.sleep(2)
+# Show current time and wait for key press
+while True:
+    cur_time = subprocess.check_output("/bin/date +%H:%M:%S", shell = True)
+    draw.rectangle((0,0,width,height), outline=0, fill=0)
+    draw.text((0, top), cur_time.replace('\n', ''), font = font, fill = 255)
+    disp.image(image)
+    disp.display()
+    k1 = not GPIO.input(K1_pin)
+    k2 = not GPIO.input(K2_pin)
+    k3 = not GPIO.input(K3_pin)
+    k4 = not GPIO.input(K4_pin)
+    if k1 or k2 or k2 or k3:
+        break
+    time.sleep(0.01)
 
 digits = [ 0, 0, 0, 0 ]
 maxval = [ 2, 9, 5, 9 ]
