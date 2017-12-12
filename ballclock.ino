@@ -11,7 +11,7 @@ const int Y_LIMIT = A2;
 const int SERVO_OUT = 3;
 const int INTERNAL_LED = 13;
 const int MAGNET_OUT = 11;
-const int MAGNET_LED_OUT = 10;
+const int MAGNET_LED_OUT = 10; // Not PWM pin
 
 const int MAGNET_HI = 255;
 const int MAGNET_LO = 100;
