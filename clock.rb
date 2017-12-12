@@ -1,6 +1,11 @@
 require 'date'
 require 'serialport'
 require 'optparse'
+require 'rpi_gpio'
+
+RPi::GPIO.set_numbering :bcm
+PIN = 23
+RPi::GPIO.setup PIN, :as => :input, :pull => :up
 
 $dry_run = false
 from_zero = false
@@ -66,6 +71,19 @@ WIDTH = 5+2
 # First storage: (0, Y_ZERO) to (4, Y_ZERO)
 # First digit:   (0, Y_ZERO+Y_OFFSET) to (0, Y_ZERO+Y_OFFSET+6)
 
+$abort_count = 0
+
+def check_abort()
+  if RPi::GPIO.low? 23
+    puts "pressed"
+    $abort_count = $abort_count+1
+  end
+  if $abort_count > 6
+    puts "ABORT"
+    Process.exit()
+  end
+end
+
 def verbose(s)
   if $verbose
     puts s
@@ -78,7 +96,8 @@ def wait_response(s)
   end while !line || line.empty?
   line.strip!
   verbose "Reply: #{line}"
-  if line != "OK #{s}"
+  expected = "OK #{s}"
+  if line[0..expected.size-1] != expected
     puts "ERROR: Expected 'OK #{s}', got '#{line}'"
     Process.exit()
   end
@@ -119,8 +138,8 @@ def move_ball(index,
     $sp.flush_input
     $sp.puts s
     wait_response(s)
-    #sleep 0.5
   end
+  check_abort()
 end
 
 $storage = []
@@ -179,6 +198,7 @@ def move_to_storage(index,
   x2 = storage_digit_index*WIDTH+storage_column_index
   y2 = Y_ZERO
   puts "TO STORAGE: #{storage_digit_index} #{storage_column_index} => #{x2}, #{y2}"
+  check_abort()
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -232,6 +252,7 @@ def fetch_from_storage(index,
   y1 = Y_ZERO
   x2 = index*WIDTH+to_x
   y2 = to_y + Y_ZERO + Y_OFFSET
+  check_abort()
   if !$dry_run
     s = "M #{x1.to_i()} #{y1.to_i()} #{x2.to_i()} #{y2.to_i()}"
     verbose "> #{s}"
@@ -435,16 +456,21 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
+  # Set origin
+  s = "o 250 1025" # 280
+  $sp.puts s
+  wait_response(s)
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
   s = "w 255 128"
   $sp.puts s
   wait_response(s)
-  # Tune delays
-  s = "s 180 180 120 50"
-  $sp.puts s
-  wait_response(s)
+  # Tune delays: servo pickup_hi magnet_1 magnet_2
+  s = "s 300 300 250 250"
+  s = "s 150 150 100 50"
+  #$sp.puts s
+  #wait_response(s)
   if do_move_test
     move_test()
     Process.exit
@@ -476,6 +502,8 @@ end
 first = true
 done = false
 since_home = 0
+abort_count = 0
+
 while true
   if run_fast
     if first
@@ -492,12 +520,13 @@ while true
     puts "#{prev} to #{current}"
     if !$dry_run
       $sp.flush_input
-      $sp.puts "E 0"
-      wait_response("E 0")
+      $sp.puts "E 1"
+      wait_response("E 1")
     end
     since_home = since_home+1
-    if since_home > 10
+    if since_home > 2
       puts "Periodic homing"
+      check_abort()
       $sp.flush_input
       $sp.puts "R"
       wait_response("R")
@@ -520,6 +549,7 @@ while true
       wait_response("M 35 0")
     end
     prev = current
+    `python showtime.py #{current[0]}#{current[1]}:#{current[2]}#{current[3]}R`
   end
   if run_fast
     if !first && (current == "0000")
@@ -530,4 +560,5 @@ while true
   else
     sleep(0.5)
   end
+  check_abort()
 end

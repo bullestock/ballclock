@@ -17,7 +17,7 @@ const int MAGNET_HI = 255;
 const int MAGNET_LO = 100;
 const int ANGLE_UP = 60;
 const int ANGLE_HALF_DOWN = 95;
-const int ANGLE_DOWN = 95;
+const int ANGLE_DOWN = 100;
 
 const int SERVO_DELAY = 250; // ms
 const int PICKUP_HI_DELAY = 250; // ms
@@ -28,14 +28,14 @@ const int MIN_STEP_DELAY = 50; // microseconds
 const int RAMP_COUNT = 10;
 
 // Distance between individual dots in the matrix, in steps
-const int STEPS_PER_CELL = 100*4; //!!398;
+const int STEPS_PER_CELL = 398;
 
 // Cells from zero to storage row
 const int Y_OFFSET = 5;
 
 // Home position offset (empirically determined)
-int x_home = 225;
-int y_home = 1000;
+int x_home = 240;
+int y_home = 1050;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -220,7 +220,8 @@ void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
 
 void home(bool _goToZero)
 {
-    digitalWrite(ENABLE, LOW);
+    if (enable_enabled)
+      digitalWrite(ENABLE, LOW);
     bool x_limit_hit = digitalRead(X_LIMIT);
     bool y_limit_hit = digitalRead(Y_LIMIT);
     const int steps = 1;
@@ -269,7 +270,8 @@ void home(bool _goToZero)
         step_xy(x_home, y_home);
     }
 
-    digitalWrite(ENABLE, HIGH);
+    if (enable_enabled)
+      digitalWrite(ENABLE, HIGH);
     
     current_x = 0;
     current_y = 0;
@@ -314,7 +316,13 @@ void drop()
 void move(int x, int y)
 {
     if ((x > 35) || (y > 20))
+    {
+       Serial.print("OOB: ");
+       Serial.print(x);
+       Serial.print(", ");
+       Serial.println(y);
        return;
+    }
     const int scaleFactor = STEPS_PER_CELL;
     int current_x_step = current_x*scaleFactor;
     int current_y_step = current_y*scaleFactor;
