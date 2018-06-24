@@ -73,6 +73,14 @@ WIDTH = 5+2
 
 $abort_count = 0
 
+def fatal(s)
+  puts("FATAL ERROR: #{s}")
+  path = File.expand_path(File.dirname(__FILE__))
+  puts(path)
+  File.write('error.txt', s)
+  Process.exit()
+end
+  
 def check_abort()
   if RPi::GPIO.low? 23
     puts "pressed"
@@ -98,8 +106,7 @@ def wait_response(s)
   verbose "Reply: #{line}"
   expected = "OK #{s}"
   if line[0..expected.size-1] != expected
-    puts "ERROR: Expected 'OK #{s}', got '#{line}'"
-    Process.exit()
+    fatal("Expected 'OK #{s}', got '#{line}'")
   end
 end
 
@@ -189,8 +196,7 @@ def move_to_storage(index,
       end
     end
     if ($storage[storage_digit_index][storage_column_index] > 0)
-      puts "Fatal error: Not enough storage"
-      Process.exit()
+      fatal("Not enough storage")
     end
   end
   $storage[storage_digit_index][storage_column_index] = 1
@@ -243,8 +249,7 @@ def fetch_from_storage(index,
       end
     end
     if ($storage[storage_digit_index][storage_column_index] == 0)
-      puts "Fatal error: Storage is empty"
-      Process.exit()
+      fatal("Storage is empty")
     end
   end
   $storage[storage_digit_index][storage_column_index] = 0
@@ -457,7 +462,7 @@ if !$dry_run
     Process.exit
   end
   # Set origin
-  s = "o 250 1025" # 280
+  s = "o 300 950"
   $sp.puts s
   wait_response(s)
   # Magnet power
@@ -467,7 +472,6 @@ if !$dry_run
   $sp.puts s
   wait_response(s)
   # Tune delays: servo pickup_hi magnet_1 magnet_2
-  s = "s 300 300 250 250"
   s = "s 150 150 100 50"
   #$sp.puts s
   #wait_response(s)
