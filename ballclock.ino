@@ -15,9 +15,9 @@ const int MAGNET_LED_OUT = 10;
 
 const int MAGNET_HI = 255;
 const int MAGNET_LO = 100;
-const int ANGLE_UP = 60;
-const int ANGLE_HALF_DOWN = 95;
-const int ANGLE_DOWN = 100;
+const int ANGLE_UP = 30;
+const int ANGLE_DOWN = 75;
+const int ANGLE_HALF_DOWN = (ANGLE_DOWN+ANGLE_UP)/2;
 
 const int SERVO_DELAY = 250; // ms
 const int PICKUP_HI_DELAY = 250; // ms
@@ -34,8 +34,8 @@ const int STEPS_PER_CELL = 398;
 const int Y_OFFSET = 5;
 
 // Home position offset (empirically determined)
-int x_home = 240;
-int y_home = 1050;
+int x_home = 300;
+int y_home = 1000;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -534,6 +534,7 @@ void process(const char* buffer)
             delay(1000);
             servo.write(a2);
             delay(1000);
+            servo.write(a1);
         }
         break;
         
