@@ -18,7 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import time
+import time, sys
 import RPi.GPIO as GPIO
 
 import Adafruit_GPIO.SPI as SPI
@@ -29,6 +29,45 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
+class Scroller:
+    disp = None
+    font = None
+    text = None
+    offset = 0
+
+    def __init__(self, disp, font, s):
+        self.disp = disp
+        self.font = font
+        self.text = s
+        self.offset = 0
+        width = disp.width
+        height = disp.height
+        image = Image.new('1', (width, height))
+        draw = ImageDraw.Draw(image)
+        padding = -2
+        top = padding
+        bottom = height-padding
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+        draw.text((0, top), s, font = self.font, fill = 255)
+        self.disp.image(image)
+        self.disp.display()
+
+    def update(self):
+        self.offset = self.offset + 1
+        if self.offset >= len(self.text):
+            self.offset = 0
+        width = self.disp.width
+        height = self.disp.height
+        image = Image.new('1', (width, height))
+        draw = ImageDraw.Draw(image)
+        padding = -2
+        top = padding
+        bottom = height-padding
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+        draw.text((0, top), self.text[self.offset:], font = font, fill = 255)
+        self.disp.image(image)
+        self.disp.display()
+    
 K1_pin = 18
 K2_pin = 24 
 K3_pin = 22
@@ -88,7 +127,7 @@ while True:
     k2 = not GPIO.input(K2_pin)
     k3 = not GPIO.input(K3_pin)
     k4 = not GPIO.input(K4_pin)
-    if k1 or k2 or k2 or k3:
+    if k1 or k2 or k3 or k4:
         break
     time.sleep(0.01)
 
@@ -151,19 +190,21 @@ while True:
                 else:
                     if k1:
                         # Up
-                        v = nof_storage + 1
-                        if nof_storage > MAX_STORAGE:
+                        if nof_storage < MAX_STORAGE:
+                            v = nof_storage + 1
+                        else:
                             v = 0
                         nof_storage = v
                     elif k2:
                         # Down
                         v = nof_storage - 1
                         if v < 0:
-                            v = MAX_STORAGE-1
+                            v = MAX_STORAGE
                         nof_storage = v
                     elif k3:
                         # Enter time setting mode
                         digits_mode = True
+                        cur_digit = 0
                     
         if k4:
             # Start
@@ -212,5 +253,24 @@ while True:
 
     subprocess.call("/usr/bin/ruby /home/pi/ballclock/clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
 
-    while not GPIO.input(K4_pin):
-        time.sleep(1)
+    disp.clear()
+    s = '?'
+    try:
+        with open('/home/pi/ballclock/error.txt', 'r') as myfile:
+            s = myfile.read().replace('\n', '')
+            scroller = Scroller(disp, font, s)
+        # Wait for K4 release
+        while not GPIO.input(K4_pin):
+            time.sleep(0.1)
+        # Show error until K4 press
+        while GPIO.input(K4_pin):
+            scroller.update()
+            time.sleep(0.2)
+        # Wait for K4 release
+        while not GPIO.input(K4_pin):
+            time.sleep(0.1)
+    except FileNotFoundError:
+        s = 'No error'
+    
+    
+
