@@ -23,7 +23,7 @@ const int SERVO_DELAY = 250; // ms
 const int PICKUP_HI_DELAY = 250; // ms
 const int MAGNET_OFF_DELAY = 100; // ms
  
-const int STEP_DELAY = 100; // microseconds
+const int STEP_DELAY = 200; // microseconds
 const int MIN_STEP_DELAY = 50; // microseconds
 const int RAMP_COUNT = 10;
 
@@ -112,13 +112,13 @@ void magnet_off()
     analogWrite(MAGNET_LED_OUT, 0);
 }
 
-void step(int m, bool reverse, int steps, bool enable = true, bool slow = false)
+void step(int m, bool reverse, int steps, bool enable = true, bool fast = false)
 {
     if (enable && enable_enabled)
         digitalWrite(ENABLE, LOW);
     const int dir_pin = (m == MOTOR_X) ? X_DIR : Y_DIR;
     const int step_pin = (m == MOTOR_X) ? X_STEP : Y_STEP;
-    int step_delay = slow ? STEP_DELAY : STEP_DELAY;
+    int step_delay = fast ? STEP_DELAY/2 : STEP_DELAY;
     digitalWrite(dir_pin, !reverse);
     for (int i = 0; i < steps; ++i)
     {
@@ -253,13 +253,12 @@ void home()
     delay(100);
     // Move towards limit
     count = 0;
-    const bool slow = false;
     do
     {
         if (!x_limit_hit)
-            step(MOTOR_X, false, steps, false, slow);
+            step(MOTOR_X, false, steps, false, true);
         if (!y_limit_hit)
-            step(MOTOR_Y, true, steps, false, slow);
+            step(MOTOR_Y, true, steps, false, true);
         x_limit_hit = digitalRead(X_LIMIT);
         y_limit_hit = digitalRead(Y_LIMIT);
         if (++count > 2*STEPS_PER_CELL*4*(5+2))
