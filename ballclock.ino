@@ -23,19 +23,24 @@ const int SERVO_DELAY = 250; // ms
 const int PICKUP_HI_DELAY = 250; // ms
 const int MAGNET_OFF_DELAY = 100; // ms
  
-const int STEP_DELAY = 250; // microseconds
+const int STEP_DELAY = 100; // microseconds
 const int MIN_STEP_DELAY = 50; // microseconds
 const int RAMP_COUNT = 10;
 
 // Distance between individual dots in the matrix, in steps
 const int STEPS_PER_CELL = 398;
 
+// X position corresponding to limit hit
+const int X_ZERO = 35;
+// Y position corresponding to limit hit
+const int Y_ZERO = -6;
+
 // Cells from zero to storage row
 const int Y_OFFSET = 5;
 
-// Home position offset (empirically determined)
-int x_home = 300;
-int y_home = 1000;
+// Where to go to after homing
+int x_home = -200;
+int y_home = 200;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -55,11 +60,11 @@ bool enable_enabled = true;
 
 Servo servo;
 
-void home(bool _goToZero = true);
+void home();
 
 void setup()
 {
-    pinMode(INTERNAL_LED, OUTPUT); 
+    pinMode(INTERNAL_LED, OUTPUT);
     pinMode(MAGNET_OUT, OUTPUT);
     pinMode(ENABLE, OUTPUT);
     pinMode(X_DIR, OUTPUT);
@@ -86,7 +91,7 @@ void setup()
 
     Serial.println("Homing");
     home();
-    Serial.println("Ball Clock ready");
+    Serial.println("Ball Clock ready - coords (0, 0) to (25, 12)");
 }
 
 void magnet_full()
@@ -218,7 +223,7 @@ void step_xy(int x_steps, int y_steps, bool enable = true, bool slow = false)
         digitalWrite(ENABLE, HIGH);
 }
 
-void home(bool _goToZero)
+void home()
 {
     if (enable_enabled)
       digitalWrite(ENABLE, LOW);
@@ -226,10 +231,11 @@ void home(bool _goToZero)
     bool y_limit_hit = digitalRead(Y_LIMIT);
     const int steps = 1;
     int count = 0;
+    // If limit is already hit, move aways from limit
     while (x_limit_hit || y_limit_hit)
     {
         if (x_limit_hit)
-            step(MOTOR_X, false, steps, false);
+            step(MOTOR_X, true, steps, false);
         if (y_limit_hit)
             step(MOTOR_Y, false, steps, false);
         x_limit_hit = digitalRead(X_LIMIT);
@@ -244,12 +250,14 @@ void home(bool _goToZero)
         }
     }
 
+    delay(100);
+    // Move towards limit
     count = 0;
     const bool slow = false;
     do
     {
         if (!x_limit_hit)
-            step(MOTOR_X, true, steps, false, slow);
+            step(MOTOR_X, false, steps, false, slow);
         if (!y_limit_hit)
             step(MOTOR_Y, true, steps, false, slow);
         x_limit_hit = digitalRead(X_LIMIT);
@@ -265,16 +273,14 @@ void home(bool _goToZero)
     }
     while (!x_limit_hit || !y_limit_hit);
 
-    if (_goToZero)
-    {
-        step_xy(x_home, y_home);
-    }
+    delay(200);
+    step_xy(x_home, y_home);
 
     if (enable_enabled)
       digitalWrite(ENABLE, HIGH);
     
-    current_x = 0;
-    current_y = 0;
+    current_x = X_ZERO;
+    current_y = Y_ZERO;
 }
 
 void pickup(bool half = false)
@@ -315,7 +321,7 @@ void drop()
 
 void move(int x, int y)
 {
-    if ((x > 35) || (y > 20))
+    if ((x > 35) || (y > 12))
     {
        Serial.print("OOB: ");
        Serial.print(x);
@@ -335,7 +341,7 @@ void move(int x, int y)
 
 void micro_move(int x, int y)
 {
-    home(false);
+    home();
     step(MOTOR_X, false, x);
     step(MOTOR_Y, false, y);
 }
@@ -446,8 +452,8 @@ void process(const char* buffer)
             int index;
             const int old_x_home = x_home;
             const int old_y_home = y_home;
-            x_home = get_int(buffer+1, BUF_SIZE-1, index); 
-            y_home = get_int(buffer+index, BUF_SIZE-1, index); 
+            x_home = get_int(buffer+1, BUF_SIZE-1, index);
+            y_home = get_int(buffer+index, BUF_SIZE-1, index);
             home();
             Serial.print("OK ");
             Serial.print(buffer);
@@ -463,7 +469,7 @@ void process(const char* buffer)
     case 'E':
         {
             int index;
-            enable_enabled = (bool) get_int(buffer+1, BUF_SIZE-1, index); 
+            enable_enabled = (bool) get_int(buffer+1, BUF_SIZE-1, index);
             digitalWrite(ENABLE, enable_enabled);
         }
         break;
@@ -500,9 +506,19 @@ void process(const char* buffer)
     case 'w':
     case 'W':
         {
+            const int old_magnet_lo_pwr = magnet_lo_pwr;
+            const int old_magnet_hi_pwr = magnet_hi_pwr;
             int index;
-            magnet_lo_pwr = get_int(buffer+1, BUF_SIZE-1, index); 
-            magnet_hi_pwr = get_int(buffer+index, BUF_SIZE-1, index); 
+            magnet_lo_pwr = get_int(buffer+1, BUF_SIZE-1, index);
+            magnet_hi_pwr = get_int(buffer+index, BUF_SIZE-1, index);
+            Serial.print("OK ");
+            Serial.print(buffer);
+            Serial.print(" (was ");
+            Serial.print(old_magnet_lo_pwr);
+            Serial.print(" ");
+            Serial.print(old_magnet_hi_pwr);
+            Serial.println(")");
+
         }
         break;
 
@@ -524,8 +540,8 @@ void process(const char* buffer)
     case 't':
         {
             int index;
-            const int a1 = get_int(buffer+1, BUF_SIZE-1, index); 
-            const int a2 = get_int(buffer+index, BUF_SIZE-1, index); 
+            const int a1 = get_int(buffer+1, BUF_SIZE-1, index);
+            const int a2 = get_int(buffer+index, BUF_SIZE-1, index);
             Serial.print("Servo ");
             Serial.print(a1);
             Serial.print("/");
