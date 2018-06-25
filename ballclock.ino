@@ -39,8 +39,8 @@ const int Y_ZERO = -6;
 const int Y_OFFSET = 5;
 
 // Where to go to after homing
-int x_home = -200;
-int y_home = 200;
+int x_home = -420;
+int y_home = 600;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
@@ -518,6 +518,7 @@ void process(const char* buffer)
             Serial.print(" ");
             Serial.print(old_magnet_hi_pwr);
             Serial.println(")");
+	    return;
 
         }
         break;
