@@ -65,7 +65,7 @@ $dots = [ zero, one, two, three, four, five, six, seven, eight, nine ]
 ROWS = 7
 COLUMNS = 5
 Y_OFFSET = 6
-Y_ZERO = 5
+Y_ZERO = 0
 WIDTH = 5+2
 
 # First storage: (0, Y_ZERO) to (4, Y_ZERO)
@@ -392,10 +392,12 @@ end
 def move_test1()
   poss = Array.new
   poss << [ 0, 5 ]
-  poss << [ 7, 5 ]
-  poss << [ 14, 5 ]
-  poss << [ 21, 5 ]
+#  poss << [ 7, 5 ]
+#  poss << [ 14, 5 ]
+#  poss << [ 21, 5 ]
   poss << [ 25, 5 ]
+  poss << [ 25, 17 ]
+  poss << [ 0, 17 ]
   index = 0
   while true
     x = poss[index][0]
@@ -405,7 +407,7 @@ def move_test1()
     verbose "> #{s}"
     $sp.puts s
     wait_response(s)
-    sleep 2
+    sleep 1
     index = index + 1
     if index >= poss.size
       index = 0
@@ -439,6 +441,7 @@ if !$dry_run
   if ARGV.size > 0
     portnum = ARGV[0].to_i
   end
+  puts "open"
   $sp = SerialPort.new("/dev/ttyUSB#{portnum}",
                        { 'baud' => 57600,
                          'data_bits' => 8,
@@ -450,7 +453,7 @@ if !$dry_run
     end while !line || line.empty?
     line.strip!
     puts "INIT: >#{line}<"
-  end while line != "Ball Clock ready"
+  end while !line.start_with? "Ball Clock ready"
   
   if do_reset
     $sp.puts('R')
@@ -461,14 +464,16 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
-  # Set origin
-  s = "o 300 950"
-  $sp.puts s
-  wait_response(s)
+  if false
+    # Set origin
+    s = "o 300 950"
+    $sp.puts s
+    wait_response(s)
+  end
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
-  s = "w 255 128"
+  s = "w 200 100"
   $sp.puts s
   wait_response(s)
   # Tune delays: servo pickup_hi magnet_1 magnet_2
@@ -476,7 +481,7 @@ if !$dry_run
   #$sp.puts s
   #wait_response(s)
   if do_move_test
-    move_test()
+    move_test1()
     Process.exit
   end
 end
@@ -505,7 +510,6 @@ end
 
 first = true
 done = false
-since_home = 0
 abort_count = 0
 
 while true
@@ -524,17 +528,10 @@ while true
     puts "#{prev} to #{current}"
     if !$dry_run
       $sp.flush_input
-      $sp.puts "E 1"
-      wait_response("E 1")
-    end
-    since_home = since_home+1
-    if since_home > 2
-      puts "Periodic homing"
-      check_abort()
-      $sp.flush_input
       $sp.puts "R"
       wait_response("R")
-      since_home = 0
+      $sp.puts "E 1"
+      wait_response("E 1")
     end
     for i in 0..3
       if current[i] != prev[i]
@@ -544,13 +541,10 @@ while true
     end
     if !$dry_run
       $sp.flush_input
-      $sp.puts "E 1"
-      wait_response("E 1")
-    end
-    if !$dry_run
-      $sp.flush_input
       $sp.puts "M 35 0"
       wait_response("M 35 0")
+      $sp.puts "E 1"
+      wait_response("E 1")
     end
     prev = current
     `python showtime.py #{current[0]}#{current[1]}:#{current[2]}#{current[3]}R`
