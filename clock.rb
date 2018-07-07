@@ -389,29 +389,60 @@ def change(index, prev, cur)
   end
 end
 
-def move_test1()
-  poss = Array.new
-  poss << [ 0, 5 ]
-#  poss << [ 7, 5 ]
-#  poss << [ 14, 5 ]
-#  poss << [ 21, 5 ]
-  poss << [ 25, 5 ]
-  poss << [ 25, 17 ]
-  poss << [ 0, 17 ]
-  index = 0
-  while true
-    x = poss[index][0]
-    y = poss[index][1]
+def goto(x, y)
     puts "Go to #{x}, #{y}"
     s = "M #{x.to_i()} #{y.to_i()}"
-    verbose "> #{s}"
     $sp.puts s
     wait_response(s)
+end
+
+def set_origin
+  s = "o -465 570"
+  $sp.puts s
+  wait_response(s)
+end
+
+def move_test1()
+  set_origin()
+  goto(0, 0)
+  sleep 1
+  s = "P"
+  $sp.puts s
+  wait_response(s)
+  while true
+    s = "D"
+    $sp.puts s
+    wait_response(s)
+    sleep 2
+    s = "P"
+    $sp.puts s
+    wait_response(s)
+    goto(25, 0)
+    s = "D"
+    $sp.puts s
+    wait_response(s)
+    sleep 2
+    s = "P"
+    $sp.puts s
+    wait_response(s)
+    goto(25, 12)
+    s = "D"
+    $sp.puts s
+    wait_response(s)
+    sleep 2
+    s = "P"
+    $sp.puts s
+    wait_response(s)
+    goto(0, 12)
+    s = "D"
+    $sp.puts s
+    wait_response(s)
+    sleep 2
+    s = "P"
+    $sp.puts s
+    wait_response(s)
+    goto(0, 0)
     sleep 1
-    index = index + 1
-    if index >= poss.size
-      index = 0
-    end
   end
 end
 
@@ -464,12 +495,7 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
-  if false
-    # Set origin
-    s = "o 300 950"
-    $sp.puts s
-    wait_response(s)
-  end
+  set_origin()
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
