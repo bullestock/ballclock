@@ -17,7 +17,7 @@ const int MAGNET_HI = 255;
 const int MAGNET_LO = 100;
 const int ANGLE_UP = 30;
 const int ANGLE_DOWN = 75;
-const int ANGLE_HALF_DOWN = (ANGLE_DOWN+ANGLE_UP)/2;
+#define ANGLE_HALF_DOWN ((angle_down+angle_up)/2)
 
 const int SERVO_DELAY = 250; // ms
 const int PICKUP_HI_DELAY = 250; // ms
@@ -39,11 +39,14 @@ const int Y_ZERO = -6;
 const int Y_OFFSET = 5;
 
 // Where to go to after homing
-int x_home = -420;
-int y_home = 600;
+int x_home = -465;
+int y_home = 570;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
+
+int angle_up = ANGLE_UP;
+int angle_down = ANGLE_DOWN;
 
 int servo_delay = SERVO_DELAY;
 int pickup_hi_delay = PICKUP_HI_DELAY;
@@ -285,10 +288,10 @@ void home()
 void pickup(bool half = false)
 {
     //servo.attach(SERVO_OUT);
-    servo.write(half ? ANGLE_HALF_DOWN : ANGLE_DOWN);
+    servo.write(half ? ANGLE_HALF_DOWN : angle_down);
     magnet_full();
     delay(pickup_hi_delay);
-    servo.write(ANGLE_UP);
+    servo.write(angle_up);
     delay(servo_delay);
     //servo.detach();
     magnet_half();
@@ -297,7 +300,7 @@ void pickup(bool half = false)
 void lift()
 {
     //servo.attach(SERVO_OUT);
-    servo.write(ANGLE_UP);
+    servo.write(angle_up);
     delay(servo_delay);
     //servo.detach();
 }
@@ -310,12 +313,12 @@ void hold()
 void drop()
 {
     //servo.attach(SERVO_OUT);
-    servo.write(ANGLE_DOWN);
+    servo.write(angle_down);
     delay(magnet_off_delay1);
     //servo.detach();
     magnet_off();
     delay(magnet_off_delay2);
-    servo.write(ANGLE_UP);
+    servo.write(angle_up);
 }
 
 void move(int x, int y)
@@ -441,19 +444,21 @@ void process(const char* buffer)
     {
     case 'R':
     case 'r':
+    // Reset
         lift();
         home();
         break;
 
     case 'O':
     case 'o':
+    // Set origin: x y
         {
             int index;
             const int old_x_home = x_home;
             const int old_y_home = y_home;
             x_home = get_int(buffer+1, BUF_SIZE-1, index);
             y_home = get_int(buffer+index, BUF_SIZE-1, index);
-            home();
+            //home();
             Serial.print("OK ");
             Serial.print(buffer);
             Serial.print(" (was ");
@@ -465,6 +470,7 @@ void process(const char* buffer)
         return;
 
     case 'e':
+    // Enable: use_enable
     case 'E':
         {
             int index;
@@ -475,6 +481,7 @@ void process(const char* buffer)
         
     case 'M':
     case 'm':
+    // Move: x y
         {
             bool microMove = false;
             int offset = 1;
@@ -489,21 +496,25 @@ void process(const char* buffer)
 
     case 'P':
     case 'p':
+    // Pick up
         pickup();
         break;
 
     case 'Q':
     case 'q':
+    // Pick up halfway
         pickup(true);
         break;
 
     case 'D':
     case 'd':
+    // Drop
         drop();
         break;
 
     case 'w':
     case 'W':
+    // Set magnet power levels: lo hi
         {
             const int old_magnet_lo_pwr = magnet_lo_pwr;
             const int old_magnet_hi_pwr = magnet_hi_pwr;
@@ -517,14 +528,19 @@ void process(const char* buffer)
             Serial.print(" ");
             Serial.print(old_magnet_hi_pwr);
             Serial.println(")");
-	    return;
 
         }
-        break;
+	return;
 
     case 's':
-        // Set delays
+    // Set parameters: servo_delay pickup_hi_delay magnet_off_delay1 magnet_off_delay2 angle_up angle_down
         {
+ 	    const int servo_delay_old = servo_delay;
+	    const int pickup_hi_delay_old = pickup_hi_delay;
+	    const int magnet_off_delay1_old = magnet_off_delay1;
+	    const int magnet_off_delay2_old = magnet_off_delay2;
+	    const int angle_up_old = angle_up;
+	    const int angle_down_old = angle_down;
             int index;
             const char* p = buffer+1;
             servo_delay = get_int(p, BUF_SIZE-1, index);
@@ -534,10 +550,30 @@ void process(const char* buffer)
             magnet_off_delay1 = get_int(p, BUF_SIZE-1, index);
             p += index;
             magnet_off_delay2 = get_int(p, BUF_SIZE-1, index);
+            p += index;
+	    angle_up = get_int(p, BUF_SIZE-1, index);
+            p += index;
+	    angle_down = get_int(p, BUF_SIZE-1, index);
+            Serial.print("OK ");
+            Serial.print(buffer);
+            Serial.print(" (was ");
+	    Serial.print(servo_delay_old);
+	    Serial.print(" ");
+	    Serial.print(pickup_hi_delay_old);
+	    Serial.print(" ");
+	    Serial.print(magnet_off_delay1_old);
+	    Serial.print(" ");
+	    Serial.print(magnet_off_delay2_old);
+	    Serial.print(" ");
+	    Serial.print(angle_up_old);
+	    Serial.print(" ");
+	    Serial.print(angle_down_old);
+	    Serial.println(")");
         }
-        break;
+	return;
         
     case 't':
+    // Test servo
         {
             int index;
             const int a1 = get_int(buffer+1, BUF_SIZE-1, index);
@@ -556,11 +592,13 @@ void process(const char* buffer)
         
     case 'H':
     case 'h':
+    // Hold
         hold();
         break;
 
     case 'L':
     case 'l':
+    // Lift
         lift();
         break;
 
