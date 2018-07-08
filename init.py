@@ -131,6 +131,16 @@ while True:
         break
     time.sleep(0.01)
 
+# Wait for key release
+while True:
+    k1 = not GPIO.input(K1_pin)
+    k2 = not GPIO.input(K2_pin)
+    k3 = not GPIO.input(K3_pin)
+    k4 = not GPIO.input(K4_pin)
+    if not k1 and not k2 and not k3 and not k4:
+        break
+    time.sleep(0.1)
+    
 digits = [ 0, 0, 0, 0 ]
 maxval = [ 2, 9, 5, 9 ]
 
@@ -251,7 +261,10 @@ while True:
     disp.image(image)
     disp.display()
 
-    subprocess.call("/usr/bin/ruby /home/pi/ballclock/clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage), shell = True)
+    cmd = "/usr/bin/ruby /home/pi/ballclock/clock.rb -t %d%d%d%d -s %d" % (digits[0], digits[1], digits[2], digits[3], nof_storage)
+    print('Run %s' % cmd)
+    subprocess.call(cmd, shell = True)
+    print('Done')
 
     disp.clear()
     s = '?'
