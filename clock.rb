@@ -86,7 +86,7 @@ def check_abort()
     puts "pressed"
     $abort_count = $abort_count+1
   end
-  if $abort_count > 6
+  if $abort_count > 3
     puts "ABORT"
     Process.exit()
   end
@@ -396,19 +396,32 @@ def goto(x, y)
     wait_response(s)
 end
 
-def set_origin
+def set_parameters
+  # Origin
   s = "o -465 570"
+  $sp.puts s
+  wait_response(s)
+  # servo_delay pickup_hi_delay magnet_off_delay1 magnet_off_delay2 angle_up angle_down
+  # Defaults 250 250 100 100 30 75
+  s = "s 250 250 100 100 30 73"
+  $sp.puts s
+  wait_response(s)
+  # Magnet power
+  # If HIGH is 255, we pick up multiple balls
+  # If LOW is below 80, we drop the ball when moving
+  s = "w 250 100"
   $sp.puts s
   wait_response(s)
 end
 
 def move_test1()
-  set_origin()
+  set_parameters()
   goto(0, 0)
   sleep 1
   s = "P"
   $sp.puts s
   wait_response(s)
+  count = 1
   while true
     s = "D"
     $sp.puts s
@@ -417,11 +430,22 @@ def move_test1()
     s = "P"
     $sp.puts s
     wait_response(s)
+    if true
     goto(25, 0)
     s = "D"
     $sp.puts s
     wait_response(s)
-    sleep 2
+    if count < 5
+      sleep 2
+      count = count + 1
+    else
+      puts "Resetting"
+      count = 1
+      s = "R"
+      $sp.puts s
+      wait_response(s)
+      goto(25, 0)
+    end
     s = "P"
     $sp.puts s
     wait_response(s)
@@ -443,6 +467,7 @@ def move_test1()
     wait_response(s)
     goto(0, 0)
     sleep 1
+    end
   end
 end
 
@@ -472,7 +497,6 @@ if !$dry_run
   if ARGV.size > 0
     portnum = ARGV[0].to_i
   end
-  puts "open"
   $sp = SerialPort.new("/dev/ttyUSB#{portnum}",
                        { 'baud' => 57600,
                          'data_bits' => 8,
@@ -483,7 +507,6 @@ if !$dry_run
       line = $sp.gets
     end while !line || line.empty?
     line.strip!
-    puts "INIT: >#{line}<"
   end while !line.start_with? "Ball Clock ready"
   
   if do_reset
@@ -495,17 +518,7 @@ if !$dry_run
     $sp.puts("M #{goto_x} #{goto_y}")
     Process.exit
   end
-  set_origin()
-  # Magnet power
-  # If HIGH is 255, we pick up multiple balls
-  # If LOW is below 80, we drop the ball when moving
-  s = "w 200 100"
-  $sp.puts s
-  wait_response(s)
-  # Tune delays: servo pickup_hi magnet_1 magnet_2
-  s = "s 150 150 100 50"
-  #$sp.puts s
-  #wait_response(s)
+  set_parameters()
   if do_move_test
     move_test1()
     Process.exit
