@@ -19,8 +19,11 @@ const int ANGLE_UP = 30;
 const int ANGLE_DOWN = 75;
 #define ANGLE_HALF_DOWN ((angle_down+angle_up)/2)
 
+// Delay after setting servo angle
 const int SERVO_DELAY = 250; // ms
+// Delay between turning on magnet and raising it
 const int PICKUP_HI_DELAY = 250; // ms
+// Delay between turning off magnet and raising it
 const int MAGNET_OFF_DELAY = 100; // ms
  
 const int STEP_DELAY = 200; // microseconds
@@ -50,8 +53,7 @@ int angle_down = ANGLE_DOWN;
 
 int servo_delay = SERVO_DELAY;
 int pickup_hi_delay = PICKUP_HI_DELAY;
-int magnet_off_delay1 = MAGNET_OFF_DELAY;
-int magnet_off_delay2 = MAGNET_OFF_DELAY;
+int magnet_off_delay = MAGNET_OFF_DELAY;
 
 const int MOTOR_X = 0;
 const int MOTOR_Y = 1;
@@ -314,10 +316,10 @@ void drop()
 {
     //servo.attach(SERVO_OUT);
     servo.write(angle_down);
-    delay(magnet_off_delay1);
+    delay(servo_delay);
     //servo.detach();
     magnet_off();
-    delay(magnet_off_delay2);
+    delay(magnet_off_delay);
     servo.write(angle_up);
 }
 
@@ -458,7 +460,7 @@ void process(const char* buffer)
             const int old_y_home = y_home;
             x_home = get_int(buffer+1, BUF_SIZE-1, index);
             y_home = get_int(buffer+index, BUF_SIZE-1, index);
-            //home();
+            home();
             Serial.print("OK ");
             Serial.print(buffer);
             Serial.print(" (was ");
@@ -533,42 +535,37 @@ void process(const char* buffer)
 	return;
 
     case 's':
-    // Set parameters: servo_delay pickup_hi_delay magnet_off_delay1 magnet_off_delay2 angle_up angle_down
+    // Set parameters: servo_delay pickup_hi_delay magnet_off_delay angle_up angle_down
         {
- 	    const int servo_delay_old = servo_delay;
-	    const int pickup_hi_delay_old = pickup_hi_delay;
-	    const int magnet_off_delay1_old = magnet_off_delay1;
-	    const int magnet_off_delay2_old = magnet_off_delay2;
-	    const int angle_up_old = angle_up;
-	    const int angle_down_old = angle_down;
+            const int servo_delay_old = servo_delay;
+            const int pickup_hi_delay_old = pickup_hi_delay;
+            const int magnet_off_delay_old = magnet_off_delay;
+            const int angle_up_old = angle_up;
+            const int angle_down_old = angle_down;
             int index;
             const char* p = buffer+1;
             servo_delay = get_int(p, BUF_SIZE-1, index);
             p += index;
             pickup_hi_delay = get_int(p, BUF_SIZE-1, index);
             p += index;
-            magnet_off_delay1 = get_int(p, BUF_SIZE-1, index);
+            magnet_off_delay = get_int(p, BUF_SIZE-1, index);
             p += index;
-            magnet_off_delay2 = get_int(p, BUF_SIZE-1, index);
+            angle_up = get_int(p, BUF_SIZE-1, index);
             p += index;
-	    angle_up = get_int(p, BUF_SIZE-1, index);
-            p += index;
-	    angle_down = get_int(p, BUF_SIZE-1, index);
+            angle_down = get_int(p, BUF_SIZE-1, index);
             Serial.print("OK ");
             Serial.print(buffer);
             Serial.print(" (was ");
-	    Serial.print(servo_delay_old);
-	    Serial.print(" ");
-	    Serial.print(pickup_hi_delay_old);
-	    Serial.print(" ");
-	    Serial.print(magnet_off_delay1_old);
-	    Serial.print(" ");
-	    Serial.print(magnet_off_delay2_old);
-	    Serial.print(" ");
-	    Serial.print(angle_up_old);
-	    Serial.print(" ");
-	    Serial.print(angle_down_old);
-	    Serial.println(")");
+            Serial.print(servo_delay_old);
+            Serial.print(" ");
+            Serial.print(pickup_hi_delay_old);
+            Serial.print(" ");
+            Serial.print(magnet_off_delay_old);
+            Serial.print(" ");
+            Serial.print(angle_up_old);
+            Serial.print(" ");
+            Serial.print(angle_down_old);
+            Serial.println(")");
         }
 	return;
         
