@@ -31,7 +31,7 @@ const int MIN_STEP_DELAY = 50; // microseconds
 const int RAMP_COUNT = 10;
 
 // Distance between individual dots in the matrix, in steps
-const int STEPS_PER_CELL = 398;
+const int STEPS_PER_CELL = 400;
 
 // X position corresponding to limit hit
 const int X_ZERO = 35;
@@ -42,8 +42,8 @@ const int Y_ZERO = -6;
 const int Y_OFFSET = 5;
 
 // Where to go to after homing
-int x_home = -465;
-int y_home = 550;
+int x_home = -440;
+int y_home = 530;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
