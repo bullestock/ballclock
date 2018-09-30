@@ -43,7 +43,7 @@ const int Y_OFFSET = 5;
 
 // Where to go to after homing
 int x_home = -465;
-int y_home = 570;
+int y_home = 550;
 
 int magnet_hi_pwr = MAGNET_HI;
 int magnet_lo_pwr = MAGNET_LO;
