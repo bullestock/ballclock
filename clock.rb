@@ -398,7 +398,8 @@ end
 
 def set_parameters
   # Origin
-  s = "o -465 570"
+  #s = "o -465 570"
+  s = "o -440 #{530+0.15*400}"
   $sp.puts s
   wait_response(s)
   # servo_delay pickup_hi_delay magnet_off_delay angle_up angle_down
