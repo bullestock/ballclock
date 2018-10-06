@@ -404,13 +404,13 @@ def set_parameters
   wait_response(s)
   # servo_delay pickup_hi_delay magnet_off_delay angle_up angle_down
   # Defaults 250 250 100 30 75
-  s = "s 250 250 100 30 73"
+  s = "s 250 350 100 30 72"
   $sp.puts s
   wait_response(s)
   # Magnet power
   # If HIGH is 255, we pick up multiple balls
   # If LOW is below 80, we drop the ball when moving
-  s = "w 250 100"
+  s = "w 200 100"
   $sp.puts s
   wait_response(s)
 end
@@ -570,8 +570,8 @@ while true
       $sp.flush_input
       $sp.puts "R"
       wait_response("R")
-      $sp.puts "E 1"
-      wait_response("E 1")
+      $sp.puts "E 0"
+      wait_response("E 0")
     end
     for i in 0..3
       if current[i] != prev[i]
