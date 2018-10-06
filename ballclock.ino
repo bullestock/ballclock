@@ -94,9 +94,9 @@ void setup()
     digitalWrite(X_Y_RESET, HIGH);
     delay(10);
 
-    Serial.println("Homing");
+    //Serial.println("Homing");
     home();
-    Serial.println("Ball Clock ready - coords (0, 0) to (25, 12)");
+    Serial.println("Ball Clock ready - version 2.0.0, coords (0, 0) to (25, 12)");
 }
 
 void magnet_full()
