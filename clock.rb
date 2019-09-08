@@ -404,7 +404,7 @@ def set_parameters
   wait_response(s)
   # servo_delay pickup_hi_delay magnet_off_delay angle_up angle_down
   # Defaults 250 250 100 30 75
-  s = "s 250 350 100 30 72"
+  s = "s 250 350 100 30 75"
   $sp.puts s
   wait_response(s)
   # Magnet power
