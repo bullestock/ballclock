@@ -155,7 +155,7 @@ while True:
     
     cur_digit = 0
     digits_mode = True
-    nof_storage = 10
+    nof_storage = 8
 
     blink_state = True
 
@@ -170,7 +170,7 @@ while True:
         k4 = not GPIO.input(K4_pin)
 
         # Draw a black filled box to clear the image.
-        draw.rectangle((0,0,width,height), outline=0, fill=0)
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
         now = time.time()
     
