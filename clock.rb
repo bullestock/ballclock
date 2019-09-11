@@ -18,6 +18,7 @@ $verbose = false
 do_goto = false
 goto_x = 0
 goto_y = 0
+replay_file = nil
 
 OptionParser.new do |opts|
   opts.banner = "Usage: clock.rb [options] [portnumber]"
@@ -33,6 +34,9 @@ OptionParser.new do |opts|
   end
   opts.on("-s", "--storage COUNT", "Balls in storage") do |n|
     storage_count = n.to_i
+  end
+  opts.on("--replay FILE", "Replay move commands from file") do |n|
+    replay_file = n
   end
   opts.on("-f", "--fast", "Run fast") do |n|
     run_fast = true
@@ -117,7 +121,7 @@ end
 def dump(dots)
   verbose "-----"
   for i in 0..ROWS-1
-    verbose dots[i]
+    verbose dots[ROWS-1-i]
   end
   verbose "-----"
 end
@@ -522,6 +526,15 @@ if !$dry_run
   set_parameters()
   if do_move_test
     move_test1()
+    Process.exit
+  end
+  if replay_file
+    File.readlines(replay_file).each do |line|
+      line.strip!
+      $sp.flush_input
+      $sp.puts line
+      wait_response(line)
+    end
     Process.exit
   end
 end
