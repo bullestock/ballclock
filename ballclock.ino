@@ -27,7 +27,7 @@ const int PICKUP_HI_DELAY = 250; // ms
 const int MAGNET_OFF_DELAY = 100; // ms
  
 const int STEP_DELAY = 200; // microseconds
-const int MIN_STEP_DELAY = 80; // microseconds
+const int MIN_STEP_DELAY = 100; // microseconds
 const int RAMP_COUNT = 10;
 
 // Distance between individual dots in the matrix, in steps
