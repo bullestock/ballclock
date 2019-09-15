@@ -265,7 +265,19 @@ void home()
         if (!y_limit_hit)
             step(MOTOR_Y, true, steps, false, true);
         x_limit_hit = digitalRead(X_LIMIT);
+        if (x_limit_hit)
+        {
+            // Debounce
+            delay(100);
+            x_limit_hit = digitalRead(X_LIMIT);
+        }
         y_limit_hit = digitalRead(Y_LIMIT);
+        if (y_limit_hit)
+        {
+            // Debounce
+            delay(100);
+            y_limit_hit = digitalRead(Y_LIMIT);
+        }
         if (++count > 2*STEPS_PER_CELL*4*(5+2))
         {       
             Serial.print("Limit not hit after ");
