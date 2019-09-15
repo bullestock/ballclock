@@ -265,14 +265,14 @@ void home()
         if (!y_limit_hit)
             step(MOTOR_Y, true, steps, false, true);
         x_limit_hit = digitalRead(X_LIMIT);
-        if (x_limit_hit)
+        if (x_limit_hit && y_limit_hit)
         {
             // Debounce
             delay(100);
             x_limit_hit = digitalRead(X_LIMIT);
         }
         y_limit_hit = digitalRead(Y_LIMIT);
-        if (y_limit_hit)
+        if (y_limit_hit && x_limit_hit)
         {
             // Debounce
             delay(100);
